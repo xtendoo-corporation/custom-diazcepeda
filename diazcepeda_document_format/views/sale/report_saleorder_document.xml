@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="report_saleorder_document_inherit" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//th[@name='th_priceunit']" position="replace">
+            <th name="th_priceunit" class="text-end">Precio</th>
+        </xpath>
+        <xpath expr="//td[@name='td_quantity']" position="replace">
+            <td name="td_quantity" class="text-end">
+                <span t-field="line.product_uom_qty">3</span>
+            </td>
+        </xpath>
+         <xpath expr="//p[@t-if='doc.fiscal_position_id and not is_html_empty(doc.fiscal_position_id.sudo().note)']" position="after">
+             <t t-set="show_gastos_gestion" t-value="doc._is_gasto_gestion()"/>
+             <t t-if = "show_gastos_gestion">
+                 <span>Gastos de gestión 1€</span>
+             </t>
+        </xpath>
+
+<!--         <xpath expr="//t[@t-set='information_block']" position="replace">-->
+<!--             <strong>Dirección de entrega:</strong>-->
+<!--                    <div t-field="doc.partner_shipping_id"-->
+<!--                        t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True, "phone_icons": True}'/>-->
+<!--        </xpath>-->
+
+    </template>
+</odoo>
