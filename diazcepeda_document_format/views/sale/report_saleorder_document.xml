@@ -9,11 +9,8 @@
                 <span t-field="line.product_uom_qty">3</span>
             </td>
         </xpath>
-         <xpath expr="//p[@t-if='doc.fiscal_position_id and not is_html_empty(doc.fiscal_position_id.sudo().note)']" position="after">
+         <xpath expr="//span[@t-field='doc.note']" position="after">
              <t t-set="show_gastos_gestion" t-value="doc._is_gasto_gestion()"/>
-             <t t-if = "show_gastos_gestion">
-                 <span>Gastos de gestión 1€</span>
-             </t>
         </xpath>
 
 <!--         <xpath expr="//t[@t-set='information_block']" position="replace">-->

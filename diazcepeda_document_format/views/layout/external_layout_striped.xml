@@ -21,8 +21,15 @@
         <!--Footer-->
         <xpath expr="//div[contains(@t-attf-class, 'o_background_footer')]//ul[contains(@class, 'list-inline')]" position="attributes">
             <attribute name="t-if">is_preprinted != 2</attribute>
-        </xpath><xpath expr="//div[contains(@t-attf-class, 'o_background_footer')]//div[contains(@class, 'text-muted')]" position="attributes">
+        </xpath>
+        <xpath expr="//div[contains(@t-attf-class, 'o_background_footer')]//div[contains(@class, 'text-muted')]" position="attributes">
             <attribute name="t-if">is_preprinted != 2</attribute>
+        </xpath>
+       <xpath expr="//div[@t-field='company.report_footer']" position="after">
+<!--           <t t-set="is_getion_gastos" t-value="doc._is_gasto_gestion()"/>-->
+            <div t-if="show_gastos_gestion" class="text-muted" style="margin-top:-23px;">
+                <span>Este documento incluye 1 € de gastos de gestión.</span>
+            </div>
         </xpath>
         <!--Fin Footer -->
 
