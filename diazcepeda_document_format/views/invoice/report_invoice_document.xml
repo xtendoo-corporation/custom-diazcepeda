@@ -53,10 +53,12 @@
              <span><i> • Lot </i></span>
              <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
               <t t-foreach="lot_values" t-as="snln_line">
-                 <span><i><t t-esc="snln_line['lot_name']"/></i></span>
-                 <span>(</span>
-                 <span><i><t t-esc="snln_line['quantity']"/></i></span>
-                 <span>)</span>
+                  <t t-if="line.product_id.name == snln_line['product_name']">
+                     <span><i><t t-esc="snln_line['lot_name']"/></i></span>
+                     <span>(</span>
+                     <span><i><t t-esc="snln_line['quantity']"/></i></span>
+                     <span>)</span>
+                  </t>
               </t>
         </xpath>
     </template>
