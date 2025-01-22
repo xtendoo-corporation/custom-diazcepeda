@@ -17,6 +17,7 @@
         "views/sale/report_saleorder_document.xml",
         "views/invoice/report_invoice_document.xml",
         "views/layout/external_layout_striped.xml",
+        "views/product_template_form_view.xml",
     ],
     "installable": True,
     'application': False,

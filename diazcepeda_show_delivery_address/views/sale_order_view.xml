@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="sale.view_order_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//tree/field[@name='partner_id']" position="after">
-                <field name="partner_shipping_id" string="Delivery Address" optional="show"/>
+                <field name="partner_shipping_id" string="Dirección de entrega" optional="show"/>
             </xpath>
         </field>
     </record>
