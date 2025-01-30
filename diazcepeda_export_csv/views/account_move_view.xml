@@ -1,18 +1,18 @@
 <odoo>
     <data>
         <!-- Define the server action -->
-        <record id="action_export_invoice_line_csv" model="ir.actions.server">
-            <field name="name">Export Invoice Lines to CSV</field>
-            <field name="model_id" ref="account.model_account_move"/>
-            <field name="binding_model_id" ref="account.model_account_move"/>
-            <field name="state">code</field>
-            <field name="code">model.export_invoice_line_csv()</field>
-        </record>
+<!--        <record id="action_export_invoice_line_csv" model="ir.actions.server">-->
+<!--            <field name="name">Export Invoice Lines to CSV</field>-->
+<!--            <field name="model_id" ref="account.model_account_move"/>-->
+<!--            <field name="binding_model_id" ref="account.model_account_move"/>-->
+<!--            <field name="binding_view_types">form</field>-->
+<!--            <field name="state">code</field>-->
+<!--            <field name="code">action = model.export_invoice_line_csv()</field>-->
+<!--        </record>-->
 
         <!-- Define the menu item -->
-        <menuitem id="menu_export_invoice_line_csv"
-                  name="Export Invoice Lines to CSV"
-                  parent="account.menu_finance"
-                  action="action_export_invoice_line_csv"/>
+
     </data>
 </odoo>
+
+<!--                  action="action_export_invoice_line_csv"/>-->

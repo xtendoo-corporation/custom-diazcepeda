@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<odoo>
+    <record id="csv_export_view" model="ir.ui.view">
+        <field name="name">Gestool export</field>
+        <field name="model">diazcepeda.export.csv</field>
+        <field name="priority">1</field>
+        <field name="arch" type="xml">
+            <form string="Importador desde Gestool">
+                <group>
+                    <field name="start_date"/>
+                    <field name="end_date"/>
+                </group>
+                <footer>
+                    <button
+                        name="export_file"
+                        string="Importar"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button string="Cancelar" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+
+    <record id="action_csv_export" model="ir.actions.act_window">
+        <field name="name">CSV Export</field>
+        <field name="res_model">diazcepeda.export.csv</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_export_invoice_line_csv"
+              name="Export Invoice Lines to CSV"
+              parent="account.menu_finance"
+              action="action_csv_export"/>
+
+</odoo>

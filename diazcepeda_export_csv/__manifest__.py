@@ -12,8 +12,11 @@
         "account",
     ],
     "data": [
+        "security/ir.model.access.csv",
         "views/account_move_view.xml",
+        "wizard/csv_export.xml",
     ],
     "installable": True,
-    'application': False,
+    'application': True,
+    'external_dependencies': {'python': ["pysftp", "cryptography"]},
 }
