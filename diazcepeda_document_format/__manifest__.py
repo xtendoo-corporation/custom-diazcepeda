@@ -12,12 +12,15 @@
         "account",
         "web",
         "sale",
+        "stock"
     ],
     "data": [
         "views/sale/report_saleorder_document.xml",
         "views/invoice/report_invoice_document.xml",
+        "views/invoice/report_invoice_document_preprinted.xml",
         "views/stock_picking/report_delivery_document.xml",
         "views/layout/external_layout_striped.xml",
+        "views/interface/product_template_view.xml",
     ],
     "installable": True,
     'application': False,

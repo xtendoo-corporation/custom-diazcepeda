@@ -1,31 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!--Informe-->
-    <record id="account_invoices_preprinted" model="ir.actions.report">
-            <field name="name">Factura PreImpresa</field>
-            <field name="model">account.move</field>
-            <field name="report_type">qweb-pdf</field>
-            <field name="report_name">diazcepeda_document_format.report_invoice_pre_printed</field>
-            <field name="report_file">diazcepeda_document_format.report_invoice_pre_printed</field>
-            <field name="print_report_name">(object._get_report_base_filename())</field>
-            <field name="attachment"/>
-            <field name="binding_model_id" ref="account.model_account_move"/>
-            <field name="binding_type">report</field>
-    </record>
-    <!--Fin Informe -->
-      <template id="report_invoice_pre_printed">
-            <t t-call="web.html_container">
-                <t t-foreach="docs" t-as="o">
-                    <t t-set="lang" t-value="o.partner_id.lang"/>
-                    <t t-set="is_preprinted" t-value="2"/>
-                    <t t-if="o._get_name_invoice_report() == 'account.report_invoice_document'"
-                       t-call="account.report_invoice_document"
-                       t-lang="lang"/>
-                </t>
-            </t>
-        </template>
-
-
      <!--Informe-->
     <record id="account_invoices_copy" model="ir.actions.report">
             <field name="name">Factura Copia</field>
@@ -72,11 +46,47 @@
         </xpath>
 
         <xpath expr="//div[@name='comment']" position="after">
+             <t t-if="o.amount_residual_signed == 0.00">
+                 <p style="font-weight:bolder;color:black;">*Esta factura está pagada.</p>
+             </t>
             <t t-if="is_copy == 2">
                 <p style="font-weight:bolder;color:black;">*Este documento es una copia.</p>
             </t>
         </xpath>
+         <xpath expr="//td[@name='account_invoice_line_name']" position="inside">
+            <br/>
+             <span><i> • Lote </i></span>
+             <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
+              <t t-foreach="lot_values" t-as="snln_line">
+                  <t t-if="line.name == snln_line['product_name']">
+                     <span><i><t t-esc="snln_line['lot_name']"/></i></span>
+                     <span>(</span>
+                     <span><i><t t-esc="snln_line['quantity']"/></i></span>
+                     <span>)</span>
+                  </t>
+              </t>
+        </xpath>
 
+        <xpath expr="//table[@name='invoice_snln_table']" position="attributes">
+            <attribute name="style">display: none;</attribute>
+        </xpath>
+
+        <xpath expr="//div[@name='origin']" position="replace">
+            <t t-if="o.invoice_origin">
+                <div t-attf-class="#{'col-auto col-3 mw-100' if report_type != 'html' else 'col'} mb-2" t-if="',' not in o.invoice_origin" name="origin">
+                    <strong>Origen:</strong><br/>
+                    <span t-field="o.invoice_origin">SO123</span>
+                </div>
+            </t>
+        </xpath>
+        <xpath expr="//div[@id='right-elements']" position="before">
+            <div id="left-elements" t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
+                <t t-set="footer_data" t-value="o._get_footer_data()"/>
+                <div style="margin-left:-14%;">
+                    <span t-raw="footer_data"/>
+                </div>
+            </div>
+        </xpath>
 
     </template>
 
