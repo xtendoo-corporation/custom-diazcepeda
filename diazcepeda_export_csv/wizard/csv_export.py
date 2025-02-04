@@ -1,11 +1,11 @@
+import ftplib
 import logging
-from base64 import b64decode
-from io import StringIO
+import base64
 import os
 import csv
-import pysftp
+import zipfile
+
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -23,6 +23,9 @@ class DiazCepedaExportCSV(models.TransientModel):
     start_date = fields.Date(string="Start Date", required=True)
     end_date = fields.Date(string="End Date", required=True)
 
+    csv_file = fields.Binary(string="CSV File", readonly=True)
+    csv_file_name = fields.Char(string="CSV File Name", readonly=True)
+
     def export_file(self):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
         self.ensure_one()
@@ -35,6 +38,11 @@ class DiazCepedaExportCSV(models.TransientModel):
         invoices_lines = invoices.invoice_line_ids.filtered(lambda l: l.product_id.categ_id.name == ('Cerveza'))
         partners = invoices_lines.mapped('partner_id')
 
+        ftp_server = 'connecta.uvesolutions.com'
+        ftp_user = 'Agent-177005'
+        ftp_password = 'Opcm_554'
+        ftp_directory = ''
+
         file_path_a = self.create_a_csv(invoices_lines)
         file_path_b = self.create_b_csv(invoices_lines)
         file_path_c = self.create_c_csv(partners)
@@ -42,24 +50,36 @@ class DiazCepedaExportCSV(models.TransientModel):
         if file_path_a:
             print("File A created at:", file_path_a)
             self.show_csv_content(file_path_a)
-            self.upload_csv_to_ftp(file_path_a)
+            # self.upload_csv_to_ftp(file_path_a, ftp_server, ftp_user, ftp_password, ftp_directory)
 
         if file_path_b:
             print("File B created at:", file_path_b)
             self.show_csv_content(file_path_b)
-            self.upload_csv_to_ftp(file_path_b)
+            # self.upload_csv_to_ftp(file_path_b, ftp_server, ftp_user, ftp_password, ftp_directory)
 
         if file_path_c:
             print("File C created at:", file_path_c)
             self.show_csv_content(file_path_c)
-            self.upload_csv_to_ftp(file_path_c)
+            # self.upload_csv_to_ftp(file_path_c, ftp_server, ftp_user, ftp_password, ftp_directory)
 
-        # Return a dictionary to download the file
-        # return {
-        #     'type': 'ir.actions.act_url',
-        #     'url': f'/web/content/?model={self._name}&id={self.id}&field=csv_file&download=true&filename=5534201C.csv',
-        #     'target': 'self'
-        # }
+        zip_path = '/tmp/invoices_csv.zip'
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            if file_path_a:
+                zipf.write(file_path_a, os.path.basename(file_path_a))
+            if file_path_b:
+                zipf.write(file_path_b, os.path.basename(file_path_b))
+            if file_path_c:
+                zipf.write(file_path_c, os.path.basename(file_path_c))
+
+        with open(zip_path, 'rb') as file:
+            self.csv_file = base64.b64encode(file.read())
+        self.csv_file_name = 'invoices_csv.zip'
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content/{self._name}/{self.id}/csv_file/{self.csv_file_name}?download=true',
+            'target': 'self',
+        }
 
     def create_a_csv(self, invoices_lines):
         path = '/tmp/5534201A.csv'
@@ -79,7 +99,10 @@ class DiazCepedaExportCSV(models.TransientModel):
                 n_imp_reg = 0
                 n_imp_dto = 0
                 if line.discount != 0:
-                    n_imp_dto = line.quantity * ( line.price_subtotal * line.discount ) / 100
+                    if line.product_id.codigo_normalizado != '':
+                        n_imp_dto = line.quantity * ( line.price_unit * line.discount ) / 100
+                    else:
+                        n_imp_dto = line.quantity * ( line.product_id.standard_price * line.discount ) / 100
             else:
                 n_tot_uni_venta = line.quantity
                 n_tot_uni_reg = line.quantity
@@ -103,6 +126,7 @@ class DiazCepedaExportCSV(models.TransientModel):
                     line.move_id.invoice_date,
                     line.move_id.name,
                     line.move_id.partner_id.ref,
+                    line.product_id.referencia_auxiliar,
                 ])
 
         #  creamos el csv con los datos recopilados
@@ -116,7 +140,7 @@ class DiazCepedaExportCSV(models.TransientModel):
                     articulo[5],
                     articulo[6],
                     CONCESIONARIO,
-                    articulo[0],
+                    articulo[8],
                     articulo[1],
                     articulo[2],
                     articulo[3],
@@ -152,6 +176,7 @@ class DiazCepedaExportCSV(models.TransientModel):
                     self.env['stock.quant'].search(
                         [('product_id', '=', line.product_id.id), ('location_id.usage', '=', 'internal')],
                         limit=1).quantity,
+                    line.product_id.referencia_auxiliar,
                 ])
 
         #  creamos el csv con los datos recopilados
@@ -163,7 +188,7 @@ class DiazCepedaExportCSV(models.TransientModel):
                 writer.writerow([
                     articulo[2],
                     CONCESIONARIO,
-                    articulo[0],
+                    articulo[4],
                     articulo[3],
                     articulo[1],
                 ])
@@ -208,52 +233,9 @@ class DiazCepedaExportCSV(models.TransientModel):
                 print(row)
         print("***************************************************")
 
-    def upload_csv_to_ftp(self, file_path):
-        # FTP server details
-        ftp_server = 'conecta.uvesolutions.com'
-        ftp_user = 'Agent-177005'
-        ftp_password = 'Opcm_554'
-        ftp_target_path = '/'
-
-        print("***************************************************")
-        print("Entro a subir al ftp")
-
-        try:
-            # Just open and close the connection
-            with self.sftp_connection():
-                raise UserError(_("Connection Test Succeeded!"))
-        except (
-            pysftp.CredentialException,
-            pysftp.ConnectionException,
-            pysftp.SSHException,
-        ) as exc:
-            _logger.info("Connection Test Failed!", exc_info=True)
-            raise UserError(_("Connection Test Failed!")) from exc
-
-    def sftp_connection(self):
-        """Return a new SFTP connection with found parameters."""
-        self.ensure_one()
-
-        params = {
-            "host": 'conecta.uvesolutions.com',
-            "username": 'Agent-177005',
-            "port": '22',
-            "passphrase": 'Opcm_554',
-        }
-        _logger.debug(
-            "Trying to connect to sftp://%(username)s@%(host)s:%(port)d", extra=params
-        )
-
-        return pysftp.Connection(**params)
-
-
-        # Connect to the FTP server
-        # with ftplib.FTP(ftp_server) as ftp:
-        #     ftp.login(user=ftp_user, passwd=ftp_password)
-        #     print(f"Logged in to FTP server: {ftp_server}")
-        #
-        #     # Open the file in binary mode
-        #     with open(file_path, 'rb') as file:
-        #         # Store the file on the FTP server
-        #         ftp.storbinary(f'STOR {ftp_target_path}', file)
-        #         print(f"File uploaded to FTP server at {ftp_target_path}")
+    def upload_csv_to_ftp(self, file_path, ftp_server, ftp_user, ftp_password, ftp_directory):
+        with ftplib.FTP(ftp_server) as ftp:
+            ftp.login(user=ftp_user, passwd=ftp_password)
+            ftp.cwd(ftp_directory)
+            with open(file_path, 'rb') as file:
+                ftp.storbinary(f'STOR {os.path.basename(file_path)}', file)

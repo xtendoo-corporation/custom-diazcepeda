@@ -18,5 +18,4 @@
     ],
     "installable": True,
     'application': True,
-    'external_dependencies': {'python': ["pysftp", "cryptography"]},
 }
