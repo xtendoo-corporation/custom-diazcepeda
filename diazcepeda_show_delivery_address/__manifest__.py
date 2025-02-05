@@ -13,8 +13,9 @@
     ],
     "data": [
         "views/sale_order_view.xml",
+        "views/sale_order_line_view.xml",
         "views/account_view_out_invoice_view.xml",
     ],
     "installable": True,
-    'application': False,
+    'application': True,
 }

@@ -13,7 +13,6 @@
     ],
     "data": [
         "security/ir.model.access.csv",
-        "views/account_move_view.xml",
         "wizard/csv_export.xml",
     ],
     "installable": True,
