@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="report_delivery_document_copy" inherit_id="stock.report_delivery_document">
+        <xpath expr="//div[@t-else=''][1]" position="after">
+            <t t-if="is_copy == 2">
+                <p style="font-weight:bolder;color:black;">*Este documento es una copia.</p>
+            </t>
+        </xpath>
+    </template>
+
+    <record id="action_report_delivery_copy" model="ir.actions.report">
+            <field name="name">Albarán de entrega Copia</field>
+            <field name="model">stock.picking</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">diazcepeda_document_format.report_deliveryslip_copy</field>
+            <field name="report_file">diazcepeda_document_format.report_deliveryslip_copy</field>
+            <field name="print_report_name">'Delivery Slip - %s - %s' % (object.partner_id.name or '', object.name)</field>
+            <field name="binding_model_id" ref="stock.model_stock_picking"/>
+            <field name="binding_type">report</field>
+        </record>
+
+     <template id="report_deliveryslip_copy">
+        <t t-foreach="docs" t-as="o">
+            <t t-set="is_copy" t-value="2"/>
+            <t t-call="stock.report_delivery_document" t-lang="o._get_report_lang()"/>
+        </t>
+    </template>
+</odoo>
