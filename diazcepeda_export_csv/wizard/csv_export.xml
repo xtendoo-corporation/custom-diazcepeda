@@ -10,6 +10,12 @@
                     <field name="start_date"/>
                     <field name="end_date"/>
                 </group>
+                 <button
+                                name="action_sftp_test_connection"
+                                type="object"
+                                string="Test SFTP Connection"
+                                icon="fa-television"
+                            />
                 <footer>
                     <button
                         name="export_file"
