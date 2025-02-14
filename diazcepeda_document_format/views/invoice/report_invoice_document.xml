@@ -88,29 +88,51 @@
             </div>
         </xpath>
 
-         <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']/address" position="replace">
+        <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']/address" position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
         </xpath>
 
         <xpath expr="//div[@name='address_same_as_shipping']/t[@t-set='address']/address" position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
         </xpath>
 
         <xpath expr="//div[@name='no_shipping']/t[@t-set='address']/address" position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
         </xpath>
 
         <xpath expr="//tbody[@class='invoice_tbody']" position="replace">
             <tbody class="invoice_tbody">
                 <t t-set="grouped_lines" t-value="{}"/>
+
+                <!-- Recorrer todas las líneas de la factura -->
                 <t t-foreach="o.invoice_line_ids" t-as="line">
-                    <t t-set="origin" t-value="line.move_id.invoice_origin or 'No_Origin'"/>
-                    <t t-set="grouped_lines"
-                       t-value="dict(grouped_lines, **{origin: grouped_lines.get(origin, []) + [line]})"/>
+                    <!-- Verificar si el campo invoice_origin no está vacío -->
+                    <t t-if="line.move_id.invoice_origin">
+                        <!-- Separar los orígenes (si existen más de uno) -->
+                        <t t-set="origins" t-value="line.move_id.invoice_origin.split(', ')"/>
+
+                        <!-- Recorrer cada origen y agrupar las líneas -->
+                        <t t-foreach="origins" t-as="origin">
+                            <!-- Verificar si la línea tiene un origen específico -->
+                            <t t-if="origin">
+                                <!-- Si el origen no está en grouped_lines, agregarlo como nueva clave -->
+                                <t t-if="origin not in grouped_lines">
+                                    <t t-set="grouped_lines" t-value="dict(grouped_lines, **{origin: [line]})"/>
+                                </t>
+                                <!-- Si ya existe el origen, agregar la línea al grupo correspondiente -->
+                                <t t-else="">
+                                    <t t-set="grouped_lines"
+                                       t-value="dict(grouped_lines, **{origin: grouped_lines[origin] + [line]})"/>
+                                </t>
+                            </t>
+                        </t>
+                    </t>
                 </t>
+
+                <!-- Ahora imprimimos los pedidos con sus líneas correspondientes -->
                 <t t-foreach="grouped_lines.items()" t-as="group">
                     <tr>
                         <td colspan="6">
@@ -119,6 +141,8 @@
                             </strong>
                         </td>
                     </tr>
+
+                    <!-- Mostrar solo las líneas correspondientes a este pedido -->
                     <t t-foreach="group[1]" t-as="line">
                         <tr t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
                             <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
@@ -150,8 +174,6 @@
                                 <td colspan="99">
                                     <span t-field="line.name" t-options="{'widget': 'text'}"/>
                                 </td>
-                                <t t-set="current_section" t-value="line"/>
-                                <t t-set="current_subtotal" t-value="0"/>
                             </t>
                             <t t-elif="line.display_type == 'line_note'">
                                 <td colspan="99">
