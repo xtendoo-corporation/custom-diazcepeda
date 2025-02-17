@@ -106,33 +106,25 @@
         <xpath expr="//tbody[@class='invoice_tbody']" position="replace">
             <tbody class="invoice_tbody">
                 <t t-set="grouped_lines" t-value="{}"/>
+                <t t-set="ungrouped_lines" t-value="[]"/>
 
-                <!-- Recorrer todas las líneas de la factura -->
                 <t t-foreach="o.invoice_line_ids" t-as="line">
-                    <!-- Verificar si el campo invoice_origin no está vacío -->
-                    <t t-if="line.move_id.invoice_origin">
-                        <!-- Separar los orígenes (si existen más de uno) -->
-                        <t t-set="origins" t-value="line.move_id.invoice_origin.split(', ')"/>
-
-                        <!-- Recorrer cada origen y agrupar las líneas -->
-                        <t t-foreach="origins" t-as="origin">
-                            <!-- Verificar si la línea tiene un origen específico -->
-                            <t t-if="origin">
-                                <!-- Si el origen no está en grouped_lines, agregarlo como nueva clave -->
-                                <t t-if="origin not in grouped_lines">
-                                    <t t-set="grouped_lines" t-value="dict(grouped_lines, **{origin: [line]})"/>
-                                </t>
-                                <!-- Si ya existe el origen, agregar la línea al grupo correspondiente -->
-                                <t t-else="">
-                                    <t t-set="grouped_lines"
-                                       t-value="dict(grouped_lines, **{origin: grouped_lines[origin] + [line]})"/>
-                                </t>
-                            </t>
+                    <t t-set="sale_order" t-value="line.sale_line_ids.order_id"/>
+                    <t t-if="sale_order">
+                        <t t-set="origin" t-value="sale_order.name"/>
+                        <t t-if="origin not in grouped_lines">
+                            <t t-set="grouped_lines" t-value="dict(grouped_lines, **{origin: [line]})"/>
                         </t>
+                        <t t-else="">
+                            <t t-set="grouped_lines"
+                               t-value="dict(grouped_lines, **{origin: grouped_lines[origin] + [line]})"/>
+                        </t>
+                    </t>
+                    <t t-else="">
+                        <t t-set="ungrouped_lines" t-value="ungrouped_lines + [line]"/>
                     </t>
                 </t>
 
-                <!-- Ahora imprimimos los pedidos con sus líneas correspondientes -->
                 <t t-foreach="grouped_lines.items()" t-as="group">
                     <tr>
                         <td colspan="6">
@@ -142,12 +134,99 @@
                         </td>
                     </tr>
 
-                    <!-- Mostrar solo las líneas correspondientes a este pedido -->
                     <t t-foreach="group[1]" t-as="line">
                         <tr t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
                             <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
                                 <td name="account_invoice_line_name">
                                     <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <br/>
+                                    <span>
+                                        <i>• Lote</i>
+                                    </span>
+                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
+                                    <t t-foreach="lot_values" t-as="snln_line">
+                                        <t t-if="line.name == snln_line['product_name']">
+                                            <span>
+                                                <i>
+                                                    <t t-esc="snln_line['lot_name']"/>
+                                                </i>
+                                            </span>
+                                            <span>(</span>
+                                            <span>
+                                                <i>
+                                                    <t t-esc="snln_line['quantity']"/>
+                                                </i>
+                                            </span>
+                                            <span>)</span>
+                                        </t>
+                                    </t>
+                                </td>
+                                <td name="td_quantity" class="text-end">
+                                    <span t-field="line.quantity"/>
+                                </td>
+                                <td name="td_price_unit"
+                                    t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
+                                    <span class="text-nowrap" t-field="line.price_unit"/>
+                                </td>
+                                <td name="td_discount" t-if="display_discount"
+                                    t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
+                                    <span class="text-nowrap" t-field="line.discount"/>
+                                </td>
+                                <t t-set="taxes"
+                                   t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_ids])"/>
+                                <td name="td_taxes"
+                                    t-attf-class="{{ 'd-none d-md-table-cell' if report_type == 'html' else '' }} {{ 'text-nowrap' if len(taxes) &lt; 10 else '' }}">
+                                    <span t-out="taxes" id="line_tax_ids"/>
+                                </td>
+                                <td name="td_subtotal" class="text-end o_price_total">
+                                    <span class="text-nowrap" t-field="line.price_subtotal"/>
+                                </td>
+                            </t>
+                            <t t-elif="line.display_type == 'line_section'">
+                                <td colspan="99">
+                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                </td>
+                            </t>
+                            <t t-elif="line.display_type == 'line_note'">
+                                <td colspan="99">
+                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                </td>
+                            </t>
+                        </tr>
+                    </t>
+                </t>
+
+                <t t-if="ungrouped_lines">
+                    <tr>
+                        <td colspan="6">
+                        </td>
+                    </tr>
+                    <t t-foreach="ungrouped_lines" t-as="line">
+                        <tr t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
+                            <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
+                                <td name="account_invoice_line_name">
+                                    <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <br/>
+                                    <span>
+                                        <i>• Lote</i>
+                                    </span>
+                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
+                                    <t t-foreach="lot_values" t-as="snln_line">
+                                        <t t-if="line.name == snln_line['product_name']">
+                                            <span>
+                                                <i>
+                                                    <t t-esc="snln_line['lot_name']"/>
+                                                </i>
+                                            </span>
+                                            <span>(</span>
+                                            <span>
+                                                <i>
+                                                    <t t-esc="snln_line['quantity']"/>
+                                                </i>
+                                            </span>
+                                            <span>)</span>
+                                        </t>
+                                    </t>
                                 </td>
                                 <td name="td_quantity" class="text-end">
                                     <span t-field="line.quantity"/>
@@ -184,30 +263,6 @@
                     </t>
                 </t>
             </tbody>
-        </xpath>
-
-        <xpath expr="//td[@name='account_invoice_line_name']" position="inside">
-            <br/>
-            <span>
-                <i>• Lote</i>
-            </span>
-            <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
-            <t t-foreach="lot_values" t-as="snln_line">
-                <t t-if="line.name == snln_line['product_name']">
-                    <span>
-                        <i>
-                            <t t-esc="snln_line['lot_name']"/>
-                        </i>
-                    </span>
-                    <span>(</span>
-                    <span>
-                        <i>
-                            <t t-esc="snln_line['quantity']"/>
-                        </i>
-                    </span>
-                    <span>)</span>
-                </t>
-            </t>
         </xpath>
     </template>
 </odoo>
