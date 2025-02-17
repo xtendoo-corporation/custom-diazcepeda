@@ -32,7 +32,7 @@ class DiazCepedaExportCSV(models.TransientModel):
     csv_file = fields.Binary(string="CSV File", readonly=True)
     csv_file_name = fields.Char(string="CSV File Name", readonly=True)
 
-    ftp_server = 'connecta.uvesolutions.com'
+    ftp_server = '13.93.124.174'
     ftp_directory = ''
 
     def export_file(self):
