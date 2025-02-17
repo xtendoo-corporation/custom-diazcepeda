@@ -139,25 +139,27 @@
                             <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
                                 <td name="account_invoice_line_name">
                                     <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
-                                    <br/>
-                                    <span>
-                                        <i>• Lote</i>
-                                    </span>
                                     <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
-                                    <t t-foreach="lot_values" t-as="snln_line">
-                                        <t t-if="line.name == snln_line['product_name']">
-                                            <span>
-                                                <i>
-                                                    <t t-esc="snln_line['lot_name']"/>
-                                                </i>
-                                            </span>
-                                            <span>(</span>
-                                            <span>
-                                                <i>
-                                                    <t t-esc="snln_line['quantity']"/>
-                                                </i>
-                                            </span>
-                                            <span>)</span>
+                                    <t t-if="lot_values">
+                                        <br/>
+                                        <span>
+                                            <i>• Lote</i>
+                                        </span>
+                                        <t t-foreach="lot_values" t-as="snln_line">
+                                            <t t-if="line.name == snln_line['product_name']">
+                                                <span>
+                                                    <i>
+                                                        <t t-esc="snln_line['lot_name']"/>
+                                                    </i>
+                                                </span>
+                                                <span>(</span>
+                                                <span>
+                                                    <i>
+                                                        <t t-esc="snln_line['quantity']"/>
+                                                    </i>
+                                                </span>
+                                                <span>)</span>
+                                            </t>
                                         </t>
                                     </t>
                                 </td>
@@ -206,25 +208,27 @@
                             <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
                                 <td name="account_invoice_line_name">
                                     <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
-                                    <br/>
-                                    <span>
-                                        <i>• Lote</i>
-                                    </span>
                                     <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
-                                    <t t-foreach="lot_values" t-as="snln_line">
-                                        <t t-if="line.name == snln_line['product_name']">
-                                            <span>
-                                                <i>
-                                                    <t t-esc="snln_line['lot_name']"/>
-                                                </i>
-                                            </span>
-                                            <span>(</span>
-                                            <span>
-                                                <i>
-                                                    <t t-esc="snln_line['quantity']"/>
-                                                </i>
-                                            </span>
-                                            <span>)</span>
+                                    <t t-if="lot_values">
+                                        <br/>
+                                        <span>
+                                            <i>• Lote</i>
+                                        </span>
+                                        <t t-foreach="lot_values" t-as="snln_line">
+                                            <t t-if="line.name == snln_line['product_name']">
+                                                <span>
+                                                    <i>
+                                                        <t t-esc="snln_line['lot_name']"/>
+                                                    </i>
+                                                </span>
+                                                <span>(</span>
+                                                <span>
+                                                    <i>
+                                                        <t t-esc="snln_line['quantity']"/>
+                                                    </i>
+                                                </span>
+                                                <span>)</span>
+                                            </t>
                                         </t>
                                     </t>
                                 </td>
