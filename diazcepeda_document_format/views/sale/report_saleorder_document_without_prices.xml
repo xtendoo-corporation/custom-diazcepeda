@@ -70,7 +70,6 @@
                             <th name="th_discount" t-if="display_discount" class="text-end">
                                 <span>Desc.%</span>
                             </th>
-                            <th name="th_taxes" class="text-end">Impuestos</th>
                         </tr>
                     </thead>
                     <tbody class="sale_tbody">
@@ -85,10 +84,6 @@
                                     </td>
                                     <td t-if="display_discount" class="text-end">
                                         <span t-field="line.discount">-</span>
-                                    </td>
-                                    <t t-set="taxes" t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_id])"/>
-                                    <td name="td_taxes" t-attf-class="text-end {{ 'text-nowrap' if len(taxes) &lt; 10 else '' }}">
-                                        <span t-out="taxes">Tax 15%</span>
                                     </td>
                                 </t>
                                 <t t-elif="line.display_type == 'line_section'">

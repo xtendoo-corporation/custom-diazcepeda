@@ -121,6 +121,21 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             rec_eq = [0, 0, 0, 0]
             index = 0
 
+            # for key, tax_total in invoice.tax_totals.items():
+            #     print("*******tax_total (key):", key)
+            #     print("*******tax_total (type):", type(tax_total))
+            #     print("*******tax_total (content):", tax_total)
+
+            for key, tax_total in invoice.tax_totals.items():
+                if key == 'groups_by_subtotal':
+                    for group in tax_total['Base imponible']:
+                        base_imponible[0] = group['tax_group_base_amount']
+                        iva_percentage = group['tax_group_name']
+                        iva[0] = group['tax_group_amount']
+                        print("Base Imponible:", base_imponible[0])
+                        print("% IVA:", iva_percentage)
+                        print("Cuota IVA:", iva[0])
+
             # for tax_total in invoice.amount_by_group:
             #     if tax_total['tax_group_id'] == self.env.ref('l10n_es.tax_group_iva'):
             #         base_imponible[index] += tax_total['base']
