@@ -4,12 +4,13 @@ import xlwt
 import os
 from odoo import models, fields, api
 
+
 class DiazCepedaExportXLSContability(models.TransientModel):
     _name = "diazcepeda.export.xls.contability"
     _description = "Informe de contabilidad"
 
-    start_date = fields.Date(string="Fecha inico", required=True)
-    end_date = fields.Date(string="Fecha fin", required=True)
+    start_date = fields.Date(string="Fecha inico", required=True, default=fields.Date.today)
+    end_date = fields.Date(string="Fecha fin", required=True, default=fields.Date.today)
 
     generate_xls_file = fields.Binary(
         "Generated file",
@@ -110,72 +111,69 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
             worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
 
-
             # Initialize VAT breakdown columns
-            base_imponible = [0,0,0]
-            iva = []
-            rec_eq = []
-            ret_eq = []
-
-            # for key, tax_total in invoice.tax_totals.items():
-            #     print("*******tax_total (key):", key)
-            #     print("*******tax_total (type):", type(tax_total))
-            #     print("*******tax_total (content):", tax_total)
+            base_imponible = []
+            porcentaje_iva = []
+            total_iva = []
+            porcentaje_recargo = []
+            total_recargo = []
+            codigo_retenciones = ''
+            base_retenciones = 0
+            porcentaje_retenciones = 0
+            total_retenciones = 0
 
             for key, tax_total in invoice.tax_totals.items():
                 if key == 'groups_by_subtotal':
-                    for group in sorted(tax_total['Base imponible'], key=lambda x: x['tax_group_name']):
-                        print("*******group:", group)
-                        base_imponible.append(group['tax_group_base_amount'])
-                        iva_percentage = group['tax_group_name']
-
+                    groups = tax_total['Base imponible']
+                    for group in groups:
                         tax_group = self.env['account.tax.group'].browse(group['tax_group_id'])
-                        taxes = self.env['account.tax'].search([('tax_group_id', '=', tax_group.id)])
-                        tax_details = [(tax.name, tax.amount, tax.l10n_es_type) for tax in taxes]
-                        # print("Tax Details:", tax_details)
+                        if tax_group:
+                            account_taxes = self.env['account.tax'].search([('tax_group_id', '=', tax_group.id)])
+                            if account_taxes:
+                                account_tax = account_taxes[0]
+                                group['tax_group_amount'] = account_tax.amount
+                                group['tax_l10n_es_type'] = account_tax.l10n_es_type
 
-                        if 'tax_group_amount' in group:
-                            if any(tax.l10n_es_type == 'recargo' for tax in tax_group.tax_ids):
-                                    print("*******recargo:", group['tax_group_amount'])
-                                    rec_eq.append(group['tax_group_amount'])
-                            elif any(tax.l10n_es_type == 'retencion' for tax in tax_group.tax_ids):
-                                    print("*******retencion:", group['tax_group_amount'])
-                                    ret_eq.append(group['tax_group_amount'])
-                            else:
-                                    print("*******iva:", group['tax_group_amount'])
-                                    iva.append(group['tax_group_amount'])
+                    for group in sorted(filter(lambda x: 'sujeto' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
+                        base_imponible.append(group['tax_group_base_amount'])
+                        if group['tax_group_amount'] == 0:
+                            porcentaje_iva.append(0)
+                            total_iva.append(0)
+                            porcentaje_recargo.append(0)
+                            total_recargo.append(0)
+                        else:
+                            porcentaje_iva.append(group['tax_group_amount'])
+                            total_iva.append(group['tax_group_base_amount'] * group['tax_group_amount'] / 100)
 
-            print(f"Invoice: {invoice.name}")
-            print("base_imponible:", base_imponible)
-            print("iva:", iva)
-            print("rec_eq:", rec_eq)
-            print("ret_eq:", ret_eq)
+                    for group in sorted(filter(lambda x: 'recargo' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
+                        porcentaje_recargo.append(group['tax_group_amount'])
+                        total_recargo.append(group['tax_group_base_amount'] * group['tax_group_amount'] / 100)
+
+                    for group in sorted(filter(lambda x: 'retencion' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
+                        base_retenciones = group['tax_group_base_amount']
+                        codigo_retenciones = group['tax_group_name']
+                        porcentaje_retenciones += group['tax_group_amount']
+                        total_retenciones += group['tax_group_base_amount'] * group['tax_group_amount'] / 100
 
             worksheet.write(row_num, 12, base_imponible[0] if len(base_imponible) > 0 else 0)
-            worksheet.write(row_num, 13,
-                            (iva[0] / base_imponible[0] * 100) if len(base_imponible) > 0 and base_imponible[0] != 0 and len(iva) > 0 else 0)
-            worksheet.write(row_num, 14, iva[0] if len(iva) > 0 else 0)
-            worksheet.write(row_num, 15,
-                            (rec_eq[0] / base_imponible[0] * 100) if len(base_imponible) > 0 and base_imponible[0] != 0 and len(rec_eq) > 0 else 0)
-            worksheet.write(row_num, 16, rec_eq[0] if len(rec_eq) > 0 else 0)
-            worksheet.write(row_num, 17, "")  # 'CodigoRetencion',
-            worksheet.write(row_num, 18, "")  # 'Base Ret',
-            worksheet.write(row_num, 19, "")  # 'PorRetencion',
-            worksheet.write(row_num, 20, "")  # 'Cuota Retención',
+            worksheet.write(row_num, 13, porcentaje_iva[0] if len(porcentaje_iva) > 0 else 0)
+            worksheet.write(row_num, 14, total_iva[0] if len(total_iva) > 0 else 0)
+            worksheet.write(row_num, 15, porcentaje_recargo[0] if len(porcentaje_recargo) > 0 else 0)
+            worksheet.write(row_num, 16, total_recargo[0] if len(total_recargo) > 0 else 0)
+            worksheet.write(row_num, 17, codigo_retenciones)  # 'CodigoRetencion',
+            worksheet.write(row_num, 18, base_retenciones)  # 'Base Ret',
+            worksheet.write(row_num, 19, porcentaje_retenciones)  # 'PorRetencion',
+            worksheet.write(row_num, 20, total_retenciones)  # 'Cuota Retención',
             worksheet.write(row_num, 21, base_imponible[1] if len(base_imponible) > 1 else 0)
-            worksheet.write(row_num, 22,
-                            (iva[1] / base_imponible[1] * 100) if len(base_imponible) > 1 and base_imponible[1] != 0 and len(iva) > 1 else 0)
-            worksheet.write(row_num, 23, iva[1] if len(iva) > 1 else 0)
-            worksheet.write(row_num, 24,
-                            (rec_eq[1] / base_imponible[1] * 100) if len(base_imponible) > 1 and base_imponible[1] != 0 and len(rec_eq) > 1 else 0)
-            worksheet.write(row_num, 25, rec_eq[1] if len(rec_eq) > 1 else 0)
+            worksheet.write(row_num, 22, porcentaje_iva[1] if len(porcentaje_iva) > 1 else 0)
+            worksheet.write(row_num, 23, total_iva[1] if len(total_iva) > 1 else 0)
+            worksheet.write(row_num, 24, porcentaje_recargo[1] if len(porcentaje_recargo) > 1 else 0)
+            worksheet.write(row_num, 25, total_recargo[1] if len(total_recargo) > 1 else 0)
             worksheet.write(row_num, 26, base_imponible[2] if len(base_imponible) > 2 else 0)
-            worksheet.write(row_num, 27,
-                            (iva[2] / base_imponible[2] * 100) if len(base_imponible) > 2 and base_imponible[2] != 0 and len(iva) > 2 else 0)
-            worksheet.write(row_num, 28, iva[2] if len(iva) > 2 else 0)
-            worksheet.write(row_num, 29,
-                            (rec_eq[2] / base_imponible[2] * 100) if len(base_imponible) > 2 and base_imponible[2] != 0 and len(rec_eq) > 2 else 0)
-            worksheet.write(row_num, 30, rec_eq[2] if len(rec_eq) > 2 else 0)
+            worksheet.write(row_num, 27, porcentaje_iva[2] if len(porcentaje_iva) > 2 else 0)
+            worksheet.write(row_num, 28, total_iva[2] if len(total_iva) > 2 else 0)
+            worksheet.write(row_num, 29, porcentaje_recargo[2] if len(porcentaje_recargo) > 2 else 0)
+            worksheet.write(row_num, 30, total_recargo[2] if len(total_recargo) > 2 else 0)
             worksheet.write(row_num, 31, "")  # 'TipoRectificativa',
             worksheet.write(row_num, 32, "")  # 'ClaseAbonoRectificativas',
             worksheet.write(row_num, 33, "")  # 'EjercicioFacturaRectificada',
@@ -195,12 +193,10 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 47, "")  # 'CodigoDelegación',
             worksheet.write(row_num, 48, "")  # 'CodDepartamento',
             worksheet.write(row_num, 49, base_imponible[3] if len(base_imponible) > 3 else 0)
-            worksheet.write(row_num, 50,
-                            (iva[3] / base_imponible[3] * 100) if len(base_imponible) > 3 and base_imponible[3] != 0 and len(iva) > 3 else 0)
-            worksheet.write(row_num, 51, iva[3] if len(iva) > 3 else 0)
-            worksheet.write(row_num, 52,
-                            (rec_eq[3] / base_imponible[3] * 100) if len(base_imponible) > 3 and base_imponible[3] != 0 and len(rec_eq) > 3 else 0)
-            worksheet.write(row_num, 53, rec_eq[3] if len(rec_eq) > 3 else 0)
+            worksheet.write(row_num, 50, porcentaje_iva[3] if len(porcentaje_iva) > 3 else 0)
+            worksheet.write(row_num, 51, total_iva[3] if len(total_iva) > 3 else 0)
+            worksheet.write(row_num, 52, porcentaje_recargo[3] if len(porcentaje_recargo) > 3 else 0)
+            worksheet.write(row_num, 53, total_recargo[3] if len(total_recargo) > 3 else 0)
 
         workbook.save(file_path)
 
