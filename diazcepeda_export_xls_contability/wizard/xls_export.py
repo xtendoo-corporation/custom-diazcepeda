@@ -98,18 +98,6 @@ class DiazCepedaExportXLSContability(models.TransientModel):
 
         # Write data
         for row_num, invoice in enumerate(invoices, start=1):
-            worksheet.write(row_num, 0, "SERIE NO")  # 'Serie',
-            worksheet.write(row_num, 1, invoice.name)  # 'Factura',
-            worksheet.write(row_num, 2, str(invoice.invoice_date))  # 'Fecha',
-            worksheet.write(row_num, 3, str(invoice.invoice_date))  # 'FechaOperacion',
-            worksheet.write(row_num, 4, "")  # 'CodigoCuenta',
-            worksheet.write(row_num, 5, invoice.partner_id.vat)  # 'CIFEUROPEO',
-            worksheet.write(row_num, 6, invoice.partner_id.name)  # 'Cliente',
-            worksheet.write(row_num, 7, "N/ FRA. Nº. " + invoice.name + " - " + invoice.partner_id.name)  # 'Comentario',
-            worksheet.write(row_num, 8, "")  # 'Contrapartida',
-            worksheet.write(row_num, 9, "")  # 'Cod.Transacion',
-            worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
-            worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
 
             # Initialize VAT breakdown columns
             base_imponible = []
@@ -154,6 +142,20 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                         codigo_retenciones = group['tax_group_name']
                         porcentaje_retenciones += group['tax_group_amount']
                         total_retenciones += group['tax_group_base_amount'] * group['tax_group_amount'] / 100
+
+            # Escribo los datos en el excel
+            worksheet.write(row_num, 0, "SERIE NO")  # 'Serie',
+            worksheet.write(row_num, 1, invoice.name)  # 'Factura',
+            worksheet.write(row_num, 2, str(invoice.invoice_date))  # 'Fecha',
+            worksheet.write(row_num, 3, str(invoice.invoice_date))  # 'FechaOperacion',
+            worksheet.write(row_num, 4, "")  # 'CodigoCuenta',
+            worksheet.write(row_num, 5, invoice.partner_id.vat)  # 'CIFEUROPEO',
+            worksheet.write(row_num, 6, invoice.partner_id.name)  # 'Cliente',
+            worksheet.write(row_num, 7, "N/ FRA. Nº. " + invoice.name + " - " + invoice.partner_id.name)  # 'Comentario',
+            worksheet.write(row_num, 8, "")  # 'Contrapartida',
+            worksheet.write(row_num, 9, "")  # 'Cod.Transacion',
+            worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
+            worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
 
             worksheet.write(row_num, 12, base_imponible[0] if len(base_imponible) > 0 else 0)
             worksheet.write(row_num, 13, porcentaje_iva[0] if len(porcentaje_iva) > 0 else 0)
