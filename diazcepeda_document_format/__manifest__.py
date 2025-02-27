@@ -21,6 +21,11 @@
         "views/stock_picking/report_delivery_document.xml",
         "views/layout/external_layout_striped.xml",
         "views/interface/product_template_view.xml",
+<<<<<<< HEAD
+=======
+        "views/sale/report_saleorder_document_with_vat.xml",
+        "views/sale/report_saleorder_document_without_prices.xml",
+>>>>>>> e29f67db06016be7eb39a649280661e4f7158be3
     ],
     "installable": True,
     'application': False,
