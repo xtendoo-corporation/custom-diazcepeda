@@ -43,6 +43,11 @@
 
          <xpath expr="//div[@t-if='not is_html_empty(o.narration)']" position="after">
              <t t-set="show_gastos_gestion" t-value="o._is_gasto_gestion()"/>
+             <t t-if="is_preprinted == 2">
+                 <t t-if="show_gastos_gestion">
+                     <span>Este documento incluye 1 € de gastos de gestión.</span>
+                 </t>
+             </t>
         </xpath>
 
         <xpath expr="//div[@name='comment']" position="after">

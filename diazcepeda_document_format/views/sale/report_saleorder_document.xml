@@ -18,6 +18,15 @@
                 <p style="font-weight:bolder;color:black;">*Este documento es una copia.</p>
             </t>
         </xpath>
+
+        <xpath expr="//div[@name='so_total_summary']">
+             <div style="margin-top:-120px;" id="left-elements" t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
+                <t t-set="footer_data" t-value="doc._get_footer_data()"/>
+                <div style="margin-left:-14%;">
+                    <span t-raw="footer_data"/>
+                </div>
+            </div>
+        </xpath>
     </template>
 
       <!--Informe-->

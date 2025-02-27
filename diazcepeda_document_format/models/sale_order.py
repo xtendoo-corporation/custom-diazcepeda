@@ -10,3 +10,8 @@ class SaleOrder(models.Model):
 
     def _is_gasto_gestion(self):
         return self.order_line.filtered(lambda line: line.product_id.name == 'Gasto de gestión').exists()
+
+    def _get_footer_data(self):
+        param_obj = self.env['ir.config_parameter'].sudo()
+        footer_data = param_obj.get_param('footer_data', default='')
+        return footer_data.replace('\n', '<br/>')
