@@ -101,18 +101,19 @@
                     </tbody>
                 </table>
                 <div class="clearfix" name="so_total_summary">
-<!--                    <div id="total" class="row" name="total">-->
-<!--                        <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">-->
+<!--                    <div style="margin-top:10px;" id="left-elements"-->
+<!--                         t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">-->
+<!--                        <t t-set="footer_data" t-value="doc._get_footer_data()"/>-->
+<!--                        <div style="margin-left:-14%;">-->
+<!--                            <span t-raw="footer_data"/>-->
+<!--                        </div>-->
+<!--                    </div>-->
+                    <div id="total" class="row" name="total">
+                        <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">
 <!--                            <table class="table table-sm table-borderless">-->
 <!--                                <t t-set="tax_totals" t-value="doc.tax_totals"/>-->
 <!--                                <t t-call="sale.document_tax_totals"/>-->
 <!--                            </table>-->
-<!--                        </div>-->
-<!--                    </div>-->
-                    <div style="margin-top:-120px;" id="left-elements" t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
-                        <t t-set="footer_data" t-value="doc._get_footer_data()"/>
-                        <div style="margin-left:-14%;">
-                            <span t-raw="footer_data"/>
                         </div>
                     </div>
                 </div>
