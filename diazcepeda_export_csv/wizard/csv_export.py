@@ -26,8 +26,8 @@ class DiazCepedaExportCSV(models.TransientModel):
     _name = "diazcepeda.export.csv"
     _description = "Exportador Diaz Cepeda"
 
-    start_date = fields.Date(string="Start Date", required=True)
-    end_date = fields.Date(string="End Date", required=True)
+    start_date = fields.Date(string="Fecha inicio", required=True)
+    end_date = fields.Date(string="Fecha fin", required=True)
 
     csv_file = fields.Binary(string="CSV File", readonly=True)
     csv_file_name = fields.Char(string="CSV File Name", readonly=True)

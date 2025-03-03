@@ -10,6 +10,7 @@
     "license": "AGPL-3",
     "depends": [
         "account",
+        "diazcepeda_export_xls_contability",
     ],
     "data": [
         "security/ir.model.access.csv",

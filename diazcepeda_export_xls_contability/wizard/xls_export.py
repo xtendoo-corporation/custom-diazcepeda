@@ -9,7 +9,7 @@ class DiazCepedaExportXLSContability(models.TransientModel):
     _name = "diazcepeda.export.xls.contability"
     _description = "Informe de contabilidad"
 
-    start_date = fields.Date(string="Fecha inico", required=True, default=fields.Date.today)
+    start_date = fields.Date(string="Fecha inicio", required=True, default=fields.Date.today)
     end_date = fields.Date(string="Fecha fin", required=True, default=fields.Date.today)
 
     generate_xls_file = fields.Binary(

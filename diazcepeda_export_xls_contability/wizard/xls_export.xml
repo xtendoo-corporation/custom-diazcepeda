@@ -13,7 +13,7 @@
                 <footer>
                     <button
                         name="export_file"
-                        string="Importar"
+                        string="Exportar"
                         type="object"
                         class="btn-primary"
                     />
@@ -21,6 +21,12 @@
                 </footer>
             </form>
         </field>
+    </record>
+
+    <record id="menu_diaz_cepeda" model="ir.ui.menu">
+        <field name="name">Diaz Cepeda</field>
+        <field name="parent_id" ref="account.menu_finance_configuration"/>
+        <field name="sequence" eval="210"/>
     </record>
 
     <record id="action_xls_export" model="ir.actions.act_window">
@@ -32,7 +38,7 @@
 
     <menuitem id="menu_export_invoice_line_csv"
               name="Informe de contabilidad"
-              parent="account.menu_finance"
+              parent="menu_diaz_cepeda"
               action="action_xls_export"/>
 
 </odoo>
