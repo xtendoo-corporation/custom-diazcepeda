@@ -87,6 +87,53 @@ class DiazCepedaExportCSV(models.TransientModel):
             'target': 'self',
         }
 
+    def preview_file(self):
+        """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
+        self.ensure_one()
+
+        # SACO LOS DATOS QUE NECESITO Y SE LO PASO A LA FUNCION QUE CREA EL CSV
+        invoices = self.env['account.move'].search([
+            ('invoice_date', '>=', self.start_date),
+            ('invoice_date', '<=', self.end_date)]
+        )
+        invoices_lines = invoices.invoice_line_ids.filtered(lambda l: l.product_id.categ_id.name == ('Cerveza'))
+        partners = invoices_lines.mapped('partner_id')
+
+        file_path_a = self.create_a_csv(invoices_lines)
+        file_path_b = self.create_b_csv(invoices_lines)
+        file_path_c = self.create_c_csv(partners)
+
+        if file_path_a:
+            print("File A created at:", file_path_a)
+            self.show_csv_content(file_path_a)
+
+        if file_path_b:
+            print("File B created at:", file_path_b)
+            self.show_csv_content(file_path_b)
+
+        if file_path_c:
+            print("File C created at:", file_path_c)
+            self.show_csv_content(file_path_c)
+
+        zip_path = '/tmp/invoices_csv.zip'
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            if file_path_a:
+                zipf.write(file_path_a, os.path.basename(file_path_a))
+            if file_path_b:
+                zipf.write(file_path_b, os.path.basename(file_path_b))
+            if file_path_c:
+                zipf.write(file_path_c, os.path.basename(file_path_c))
+
+        with open(zip_path, 'rb') as file:
+            self.csv_file = base64.b64encode(file.read())
+        self.csv_file_name = 'invoices_csv.zip'
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content/{self._name}/{self.id}/csv_file/{self.csv_file_name}?download=true',
+            'target': 'self',
+        }
+
     def create_a_csv(self, invoices_lines):
         path = '/tmp/5534201A.csv'
 
@@ -247,7 +294,16 @@ class DiazCepedaExportCSV(models.TransientModel):
         try:
             # Just open and close the connection
             with self.sftp_connection():
-                raise UserError(_("Connection Test Succeeded!"))
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Test de conexión'),
+                        'message': _('Connection test succeeded!'),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
         except (
             pysftp.CredentialException,
             pysftp.ConnectionException,

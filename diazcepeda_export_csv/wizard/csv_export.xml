@@ -19,7 +19,13 @@
                 <footer>
                     <button
                         name="export_file"
-                        string="Importar"
+                        string="Exportar"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button
+                        name="preview_file"
+                        string="Previsualizar"
                         type="object"
                         class="btn-primary"
                     />
