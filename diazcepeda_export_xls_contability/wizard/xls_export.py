@@ -11,6 +11,8 @@ class DiazCepedaExportXLSContability(models.TransientModel):
 
     start_date = fields.Date(string="Fecha inicio", required=True, default=fields.Date.today)
     end_date = fields.Date(string="Fecha fin", required=True, default=fields.Date.today)
+    providers_check = fields.Boolean(string="Proveedores")
+    customers_check = fields.Boolean(string="Clientes")
 
     generate_xls_file = fields.Binary(
         "Generated file",
@@ -21,11 +23,16 @@ class DiazCepedaExportXLSContability(models.TransientModel):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
         self.ensure_one()
 
-        # SACO LOS DATOS QUE NECESITO Y SE LO PASO A LA FUNCION QUE CREA EL CSV
-        invoices = self.env['account.move'].search([
-            ('invoice_date', '>=', self.start_date),
-            ('invoice_date', '<=', self.end_date)]
-        )
+        domain = [('invoice_date', '>=', self.start_date), ('invoice_date', '<=', self.end_date)]
+
+        if self.providers_check and not self.customers_check:
+            domain.append(('move_type', 'in', ['in_invoice', 'in_refund']))
+        elif self.customers_check and not self.providers_check:
+            domain.append(('move_type', 'in', ['out_invoice', 'out_refund']))
+        elif self.providers_check and self.customers_check:
+            domain.append(('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']))
+
+        invoices = self.env['account.move'].search(domain)
 
         print("*******INVOICES:", invoices)
         print("*******start_date:", self.start_date)

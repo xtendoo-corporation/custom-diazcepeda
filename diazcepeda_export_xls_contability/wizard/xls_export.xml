@@ -9,6 +9,8 @@
                 <group>
                     <field name="start_date"/>
                     <field name="end_date"/>
+                    <field name="providers_check"/>
+                    <field name="customers_check"/>
                 </group>
                 <footer>
                     <button
