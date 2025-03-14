@@ -4,6 +4,7 @@ import base64
 import os
 import csv
 import zipfile
+from datetime import date, timedelta
 from itertools import product
 
 from odoo.exceptions import UserError
@@ -24,13 +25,23 @@ except ImportError:  # pragma: no cover
 
 CONCESIONARIO: str = '02055342'
 
+def _default_start_date():
+    today = date.today()
+    return today.replace(day=1)
+
+def _default_end_date():
+    today = date.today()
+    next_month = today.replace(day=28) + timedelta(days=4)
+    return next_month - timedelta(days=next_month.day)
+
+
 class DiazCepedaExportCSV(models.TransientModel):
     _name = "diazcepeda.export.csv"
     _description = "Exportador Diaz Cepeda"
 
-    start_date = fields.Date(string="Fecha inicio", required=True, default=lambda self: fields.Date.to_date('2025-01-08') )
+    start_date = fields.Date(string="Fecha inicio", required=True, default=_default_start_date() )
 
-    end_date = fields.Date(string="Fecha fin", required=True, default=lambda self: fields.Date.to_date('2025-01-08') )
+    end_date = fields.Date(string="Fecha fin", required=True, default=_default_end_date() )
 
     csv_file = fields.Binary(string="CSV File", readonly=True)
     csv_file_name = fields.Char(string="CSV File Name", readonly=True)
@@ -141,17 +152,9 @@ class DiazCepedaExportCSV(models.TransientModel):
         path = '/tmp/5534201A.csv'
 
         # Preparamos un array con los datos que queremos exportar
-        articulos = []
         products = []
 
         for line in invoices_lines:
-            print("*"*50)
-            print("line.price_unit", line.price_unit)
-            print("line.discount", line.discount)
-            print("line.quantity", line.quantity)
-            print("line.product_id.codigo_normalizado", line.product_id.codigo_normalizado)
-            print("line.product_id.standard_price", line.product_id.standard_price)
-
             total_importe_descuento = 0
             total_unidades_venta = line.quantity
 
@@ -164,11 +167,9 @@ class DiazCepedaExportCSV(models.TransientModel):
                     else:
                         total_importe_descuento = line.quantity * ( ( line.product_id.standard_price * line.discount ) / 100 )
 
-                print("n_imp_dto", total_importe_descuento)
-
             else:
                 total_unidades_regalo = line.quantity
-                total_importe_regalo = line.quantity * line.product_id.standard_price
+                total_importe_regalo = line.quantity * line.product_id.lst_price
 
             # Check if the product already exists in the products array
             product_exists = False
@@ -193,31 +194,8 @@ class DiazCepedaExportCSV(models.TransientModel):
                     "total_unidades_regalo": total_unidades_regalo,
                     "total_importe_regalo": total_importe_regalo,
                     "total_importe_descuento": total_importe_descuento,
+                    "stock_quantity": self.env['stock.quant'].search([('product_id', '=', line.product_id.id), ('location_id.usage', '=', 'internal')], limit=1).quantity,
                 })
-
-            # if self.is_in_array(articulos, line.product_id.default_code):
-            #     for articulo in articulos:
-            #         if articulo[0] == line.product_id.default_code:
-            #             articulo[1] = articulo[1] + total_unidades_venta
-            #             articulo[2] = articulo[2] + total_unidades_regalo
-            #             articulo[3] = articulo[3] + total_importe_regalo
-            #             articulo[4] = articulo[4] + total_importe_descuento #
-            # else:
-            #     articulos.append([
-            #         line.product_id.default_code,            # 0
-            #         total_unidades_venta,                    # 1
-            #         total_unidades_regalo,                   # 2
-            #         total_importe_regalo, # 3
-            #         total_importe_descuento, # 4
-            #         line.move_id.invoice_date,              # 5
-            #         line.move_id.name,                      # 6
-            #         line.move_id.partner_id.ref,       # 7
-            #         line.product_id.referencia_auxiliar,  # 8
-            #     ])
-
-
-
-
 
         #  creamos el csv con los datos recopilados
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -237,62 +215,47 @@ class DiazCepedaExportCSV(models.TransientModel):
                     product["total_importe_regalo"] + product["total_importe_descuento"],
                 ])
 
-            # for articulo in articulos:
-            #     writer.writerow([
-            #         articulo[5],
-            #         articulo[5],
-            #         articulo[6],
-            #         CONCESIONARIO,
-            #         articulo[8],
-            #         articulo[1],
-            #         articulo[2],
-            #         articulo[3],
-            #         articulo[4],
-            #         articulo[3] + articulo[4],
-            #         ])
-
         return path
 
     def create_b_csv(self, invoices_lines):
         path = '/tmp/5534201B.csv'
 
         # Preparamos un array con los datos que queremos exportar
-        articulos = []
+        products = []
 
         for line in invoices_lines:
-            n_tot_uni_venta = 0
+            total_unidades_venta = line.quantity
 
-            if line.price_unit != 0:
-                n_tot_uni_venta = 0
-            else:
-                n_tot_uni_venta = line.quantity
+            # Check if the product already exists in the products array
+            product_exists = False
+            for product in products:
+                if (product["default_code"] == line.product_id.default_code):
+                    product["total_unidades_venta"] += total_unidades_venta
+                    product_exists = True
+                    break
 
-            if self.is_in_array(articulos, line.product_id.default_code):
-                for articulo in articulos:
-                    if articulo[0] == line.product_id.default_code:
-                        articulo[1] = articulo[1] + n_tot_uni_venta
-            else:
-                articulos.append([
-                    line.product_id.default_code,
-                    n_tot_uni_venta,
-                    line.move_id.invoice_date,
-                    self.env['stock.quant'].search(
-                        [('product_id', '=', line.product_id.id), ('location_id.usage', '=', 'internal')],
-                        limit=1).quantity,
-                    line.product_id.referencia_auxiliar,
-                ])
+            if not product_exists:
+                products.append({
+                    "invoice_date": line.move_id.invoice_date,
+                    "invoice_number": line.move_id.name,
+                    "partner_ref": line.move_id.partner_id.ref,
+                    "auxiliar_reference": line.product_id.referencia_auxiliar,
+                    "default_code": line.product_id.default_code,
+                    "total_unidades_venta": total_unidades_venta,
+                    "stock_quantity": self.calculate_real_stock(line.product_id.id),
+                })
 
         #  creamos el csv con los datos recopilados
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            for articulo in articulos:
+            for product in products:
                 writer.writerow([
-                    articulo[2],
+                    product["invoice_date"],
                     CONCESIONARIO,
-                    articulo[4],
-                    articulo[3],
-                    articulo[1],
+                    product["auxiliar_reference"],
+                    product["stock_quantity"],
+                    product["total_unidades_venta"],
                 ])
 
         return path
@@ -325,6 +288,14 @@ class DiazCepedaExportCSV(models.TransientModel):
             if item in sub_array:
                 return True
         return False
+
+    def calculate_real_stock(self, product_id):
+        stock_quant = self.env['stock.quant'].search([
+            ('product_id', '=', product_id),
+            ('location_id.usage', '=', 'internal')
+        ])
+        real_stock = sum(stock_quant.mapped('quantity'))
+        return real_stock
 
     def show_csv_content(self, file_path):
         print("***************************************************")
