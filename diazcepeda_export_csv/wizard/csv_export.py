@@ -4,6 +4,8 @@ import base64
 import os
 import csv
 import zipfile
+from itertools import product
+
 from odoo.exceptions import UserError
 
 from odoo import _, api, fields, models
@@ -26,8 +28,9 @@ class DiazCepedaExportCSV(models.TransientModel):
     _name = "diazcepeda.export.csv"
     _description = "Exportador Diaz Cepeda"
 
-    start_date = fields.Date(string="Fecha inicio", required=True)
-    end_date = fields.Date(string="Fecha fin", required=True)
+    start_date = fields.Date(string="Fecha inicio", required=True, default=lambda self: fields.Date.to_date('2025-01-08') )
+
+    end_date = fields.Date(string="Fecha fin", required=True, default=lambda self: fields.Date.to_date('2025-01-08') )
 
     csv_file = fields.Binary(string="CSV File", readonly=True)
     csv_file_name = fields.Char(string="CSV File Name", readonly=True)
@@ -139,66 +142,114 @@ class DiazCepedaExportCSV(models.TransientModel):
 
         # Preparamos un array con los datos que queremos exportar
         articulos = []
+        products = []
 
         for line in invoices_lines:
-            n_tot_uni_venta = 0
-            n_tot_uni_reg = 0
-            n_imp_reg = 0
-            n_imp_dto = 0
+            print("*"*50)
+            print("line.price_unit", line.price_unit)
+            print("line.discount", line.discount)
+            print("line.quantity", line.quantity)
+            print("line.product_id.codigo_normalizado", line.product_id.codigo_normalizado)
+            print("line.product_id.standard_price", line.product_id.standard_price)
+
+            total_importe_descuento = 0
+            total_unidades_venta = line.quantity
 
             if line.price_unit != 0:
-                n_tot_uni_venta = 0
-                n_tot_uni_reg = 0
-                n_imp_reg = 0
-                n_imp_dto = 0
+                total_unidades_regalo = 0
+                total_importe_regalo = 0
                 if line.discount != 0:
                     if line.product_id.codigo_normalizado != '':
-                        n_imp_dto = line.quantity * ( line.price_unit * line.discount ) / 100
+                        total_importe_descuento = line.quantity * ( ( line.price_unit * line.discount ) / 100 )
                     else:
-                        n_imp_dto = line.quantity * ( line.product_id.standard_price * line.discount ) / 100
-            else:
-                n_tot_uni_venta = line.quantity
-                n_tot_uni_reg = line.quantity
-                n_imp_reg = line.quantity * line.price_unit
-                n_imp_dto = 0
+                        total_importe_descuento = line.quantity * ( ( line.product_id.standard_price * line.discount ) / 100 )
 
-            if self.is_in_array(articulos, line.product_id.default_code):
-                for articulo in articulos:
-                    if articulo[0] == line.product_id.default_code:
-                        articulo[1] = articulo[1] + n_tot_uni_venta
-                        articulo[2] = articulo[2] + n_tot_uni_reg
-                        articulo[3] = articulo[3] + n_imp_reg
-                        articulo[4] = articulo[4] + n_imp_dto
+                print("n_imp_dto", total_importe_descuento)
+
             else:
-                articulos.append([
-                    line.product_id.default_code,
-                    n_tot_uni_venta,
-                    n_tot_uni_reg,
-                    n_imp_reg,
-                    n_imp_dto,
-                    line.move_id.invoice_date,
-                    line.move_id.name,
-                    line.move_id.partner_id.ref,
-                    line.product_id.referencia_auxiliar,
-                ])
+                total_unidades_regalo = line.quantity
+                total_importe_regalo = line.quantity * line.product_id.standard_price
+
+            # Check if the product already exists in the products array
+            product_exists = False
+            for product in products:
+                if (product["invoice_number"] == line.move_id.name and
+                    product["default_code"] == line.product_id.default_code):
+                    product["total_unidades_venta"] += total_unidades_venta
+                    product["total_unidades_regalo"] += total_unidades_regalo
+                    product["total_importe_regalo"] += total_importe_regalo
+                    product["total_importe_descuento"] += total_importe_descuento
+                    product_exists = True
+                    break
+
+            if not product_exists:
+                products.append({
+                    "invoice_date": line.move_id.invoice_date,
+                    "invoice_number": line.move_id.name,
+                    "partner_ref": line.move_id.partner_id.ref,
+                    "auxiliar_reference": line.product_id.referencia_auxiliar,
+                    "default_code": line.product_id.default_code,
+                    "total_unidades_venta": total_unidades_venta,
+                    "total_unidades_regalo": total_unidades_regalo,
+                    "total_importe_regalo": total_importe_regalo,
+                    "total_importe_descuento": total_importe_descuento,
+                })
+
+            # if self.is_in_array(articulos, line.product_id.default_code):
+            #     for articulo in articulos:
+            #         if articulo[0] == line.product_id.default_code:
+            #             articulo[1] = articulo[1] + total_unidades_venta
+            #             articulo[2] = articulo[2] + total_unidades_regalo
+            #             articulo[3] = articulo[3] + total_importe_regalo
+            #             articulo[4] = articulo[4] + total_importe_descuento #
+            # else:
+            #     articulos.append([
+            #         line.product_id.default_code,            # 0
+            #         total_unidades_venta,                    # 1
+            #         total_unidades_regalo,                   # 2
+            #         total_importe_regalo, # 3
+            #         total_importe_descuento, # 4
+            #         line.move_id.invoice_date,              # 5
+            #         line.move_id.name,                      # 6
+            #         line.move_id.partner_id.ref,       # 7
+            #         line.product_id.referencia_auxiliar,  # 8
+            #     ])
+
+
+
+
 
         #  creamos el csv con los datos recopilados
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            for articulo in articulos:
+            for product in products:
                 writer.writerow([
-                    articulo[5],
-                    articulo[5],
-                    articulo[6],
+                    product["invoice_date"],
+                    product["invoice_date"],
+                    product["invoice_number"],
                     CONCESIONARIO,
-                    articulo[8],
-                    articulo[1],
-                    articulo[2],
-                    articulo[3],
-                    articulo[4],
-                    articulo[3] + articulo[4],
-                    ])
+                    product["auxiliar_reference"],
+                    product["total_unidades_venta"],
+                    product["total_unidades_regalo"],
+                    product["total_importe_regalo"],
+                    product["total_importe_descuento"],
+                    product["total_importe_regalo"] + product["total_importe_descuento"],
+                ])
+
+            # for articulo in articulos:
+            #     writer.writerow([
+            #         articulo[5],
+            #         articulo[5],
+            #         articulo[6],
+            #         CONCESIONARIO,
+            #         articulo[8],
+            #         articulo[1],
+            #         articulo[2],
+            #         articulo[3],
+            #         articulo[4],
+            #         articulo[3] + articulo[4],
+            #         ])
 
         return path
 
