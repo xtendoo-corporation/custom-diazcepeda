@@ -80,8 +80,6 @@ class DiazCepedaExportCSV(models.TransientModel):
             self.show_csv_content(file_path_c)
             self.upload_csv_to_ftp(file_path_c, self.ftp_server, self.ftp_directory)
 
-
-
         zip_path = '/tmp/invoices_csv.zip'
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             if file_path_a:
@@ -185,7 +183,8 @@ class DiazCepedaExportCSV(models.TransientModel):
 
             if not product_exists:
                 products.append({
-                    "invoice_date": line.move_id.invoice_date,
+                    "statistic_date": str( line.move_id.invoice_date.year ) + str( line.move_id.invoice_date.month ).zfill(2),
+                    "invoice_date": str( line.move_id.invoice_date.year ) + str( line.move_id.invoice_date.month ).zfill(2) + str( line.move_id.invoice_date.day ).zfill(2),
                     "invoice_number": line.move_id.name,
                     "partner_ref": line.move_id.partner_id.ref,
                     "auxiliar_reference": line.product_id.referencia_auxiliar,
@@ -200,19 +199,19 @@ class DiazCepedaExportCSV(models.TransientModel):
         #  creamos el csv con los datos recopilados
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
-            writer = csv.writer(file)
+            writer = csv.writer(file, delimiter=';')
             for product in products:
                 writer.writerow([
-                    product["invoice_date"],
+                    product["statistic_date"],
                     product["invoice_date"],
                     product["invoice_number"],
                     CONCESIONARIO,
                     product["auxiliar_reference"],
-                    product["total_unidades_venta"],
-                    product["total_unidades_regalo"],
-                    product["total_importe_regalo"],
-                    product["total_importe_descuento"],
-                    product["total_importe_regalo"] + product["total_importe_descuento"],
+                    str( product["total_unidades_venta"] ).replace(".", ","),
+                    str( product["total_unidades_regalo"] ).replace(".", ","),
+                    str( product["total_importe_regalo"] ).replace(".", ","),
+                    str( product["total_importe_descuento"] ).replace(".", ","),
+                    str( product["total_importe_regalo"] + product["total_importe_descuento"] ).replace(".", ","),
                 ])
 
         return path
@@ -236,7 +235,7 @@ class DiazCepedaExportCSV(models.TransientModel):
 
             if not product_exists:
                 products.append({
-                    "invoice_date": line.move_id.invoice_date,
+                    "invoice_date": str( line.move_id.invoice_date.year ) + str( line.move_id.invoice_date.month ).zfill(2) + str( line.move_id.invoice_date.day ).zfill(2),
                     "invoice_number": line.move_id.name,
                     "partner_ref": line.move_id.partner_id.ref,
                     "auxiliar_reference": line.product_id.referencia_auxiliar,
@@ -248,14 +247,14 @@ class DiazCepedaExportCSV(models.TransientModel):
         #  creamos el csv con los datos recopilados
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
-            writer = csv.writer(file)
+            writer = csv.writer(file, delimiter=';')
             for product in products:
                 writer.writerow([
                     product["invoice_date"],
                     CONCESIONARIO,
                     product["auxiliar_reference"],
-                    product["stock_quantity"],
-                    product["total_unidades_venta"],
+                    str(product["stock_quantity"]).replace(".", ","),
+                    str(product["total_unidades_venta"]).replace(".", ","),
                 ])
 
         return path
@@ -265,19 +264,20 @@ class DiazCepedaExportCSV(models.TransientModel):
         path = '/tmp/5534201C.csv'
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
-            writer = csv.writer(file)
+            writer = csv.writer(file, delimiter=';')
             for partner in partners:
                 writer.writerow([
                     CONCESIONARIO,
-                    partner.ref,
-                    partner.name,
-                    partner.street,
-                    partner.city,
-                    partner.zip,
-                    partner.name,
-                    partner.street,
-                    partner.city,
-                    partner.zip,
+                    partner.ref or '',
+                    partner.company_name or '',
+                    partner.street or '',
+                    partner.city or '',
+                    partner.zip or '',
+                    partner.name or '',
+                    partner.vat or '',
+                    partner.street or '',
+                    partner.city or '',
+                    partner.zip or '',
                 ])
 
         return path
