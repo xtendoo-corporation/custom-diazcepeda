@@ -269,7 +269,7 @@ class DiazCepedaExportCSV(models.TransientModel):
                 writer.writerow([
                     CONCESIONARIO,
                     partner.ref or '',
-                    partner.company_name or '',
+                    partner.comercial if partner.comercial else partner.name,
                     partner.street or '',
                     partner.city or '',
                     partner.zip or '',
