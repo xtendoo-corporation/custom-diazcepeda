@@ -25,11 +25,6 @@
         </field>
     </record>
 
-    <record id="menu_diaz_cepeda" model="ir.ui.menu">
-        <field name="name">Diaz Cepeda</field>
-        <field name="parent_id" ref="account.menu_finance_configuration"/>
-        <field name="sequence" eval="210"/>
-    </record>
 
     <record id="action_xls_export" model="ir.actions.act_window">
         <field name="name">Informe Contabilidad</field>
@@ -40,7 +35,7 @@
 
     <menuitem id="menu_export_invoice_line_csv"
               name="Informe de contabilidad"
-              parent="menu_diaz_cepeda"
+              parent="diazcepeda_administration.menu_diazcepeda_config"
               action="action_xls_export"/>
 
 </odoo>

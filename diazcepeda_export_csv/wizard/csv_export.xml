@@ -45,7 +45,7 @@
 
     <menuitem id="menu_export_invoice_line_csv"
               name="Exportar líneas de factura a CSV"
-              parent="diazcepeda_export_xls_contability.menu_diaz_cepeda"
+              parent="diazcepeda_administration.menu_diazcepeda_config"
               action="action_csv_export"/>
 
 </odoo>

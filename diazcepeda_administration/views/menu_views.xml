@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Crear una nueva pestaña en la barra superior de Facturación -->
+    <menuitem id="menu_diazcepeda_config"
+              name="Díaz Cepeda"
+              parent="account.menu_finance"
+              sequence="80"/>
+
+</odoo>
