@@ -167,15 +167,28 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
             worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
 
-            # Buscamos el indice del 21% en porcentaje_iva
-            indice_porcentaje_iva_21 = porcentaje_iva.index(21) if 21 in porcentaje_iva else 0
+            print("*"*80)
+            print("porcentaje_iva:", porcentaje_iva)
 
-            if indice_porcentaje_iva_21 > 0:
+            # Buscamos el indice del 21% en porcentaje_iva
+            indice_porcentaje_iva_21 = porcentaje_iva.index(21.0) if 21.0 in porcentaje_iva else -1
+
+            print("indice_porcentaje_iva_21:", indice_porcentaje_iva_21)
+
+            if indice_porcentaje_iva_21 >= 0:
+
+                print("base_imponible:", base_imponible)
+                print("porcentaje_iva:", porcentaje_iva)
+                print("total_iva:", total_iva)
+                print("porcentaje_recargo:", porcentaje_recargo)
+                print("total_recargo:", total_recargo)
+                print("indice_porcentaje_iva_21:", indice_porcentaje_iva_21)
+
                 worksheet.write(row_num, 12, base_imponible[indice_porcentaje_iva_21])
                 worksheet.write(row_num, 13, porcentaje_iva[indice_porcentaje_iva_21])
                 worksheet.write(row_num, 14, total_iva[indice_porcentaje_iva_21])
-                worksheet.write(row_num, 15, porcentaje_recargo[indice_porcentaje_iva_21] if len(porcentaje_recargo) > 0 else 0)
-                worksheet.write(row_num, 16, total_recargo[indice_porcentaje_iva_21] if len(total_recargo) > 0 else 0)
+                worksheet.write(row_num, 15, porcentaje_recargo[indice_porcentaje_iva_21] if indice_porcentaje_iva_21 < len(porcentaje_recargo) else 0)
+                worksheet.write(row_num, 16, total_recargo[indice_porcentaje_iva_21] if indice_porcentaje_iva_21 < len(porcentaje_recargo) > 0 else 0)
             else:
                 worksheet.write(row_num, 12, 0)
                 worksheet.write(row_num, 13, 0)
@@ -189,14 +202,23 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 20, total_retenciones)  # 'Cuota Retención',
 
             # Buscamos el indice del 10% en porcentaje_iva
-            indice_porcentaje_iva_10 = porcentaje_iva.index(10) if 10 in porcentaje_iva else 0
+            indice_porcentaje_iva_10 = porcentaje_iva.index(10) if 10 in porcentaje_iva else -1
 
-            if indice_porcentaje_iva_10 > 0:
+            if indice_porcentaje_iva_10 >= 0:
+
+                print("base_imponible:", base_imponible)
+                print("porcentaje_iva:", porcentaje_iva)
+                print("total_iva:", total_iva)
+                print("porcentaje_recargo:", porcentaje_recargo)
+                print("total_recargo:", total_recargo)
+                print("indice_porcentaje_iva_10:", indice_porcentaje_iva_10)
+                print("len(porcentaje_recargo):", len(porcentaje_recargo) )
+
                 worksheet.write(row_num, 21, base_imponible[indice_porcentaje_iva_10])
                 worksheet.write(row_num, 22, porcentaje_iva[indice_porcentaje_iva_10])
                 worksheet.write(row_num, 23, total_iva[indice_porcentaje_iva_10])
-                worksheet.write(row_num, 24, porcentaje_recargo[indice_porcentaje_iva_10] if len(porcentaje_recargo) > 0 else 0)
-                worksheet.write(row_num, 25, total_recargo[indice_porcentaje_iva_10] if len(total_recargo) > 0 else 0)
+                worksheet.write(row_num, 24, porcentaje_recargo[indice_porcentaje_iva_10] if indice_porcentaje_iva_10 < len(porcentaje_recargo) else 0)
+                worksheet.write(row_num, 25, total_recargo[indice_porcentaje_iva_10] if indice_porcentaje_iva_10 < len(porcentaje_recargo) else 0)
             else:
                 worksheet.write(row_num, 21, 0)
                 worksheet.write(row_num, 22, 0)
@@ -205,14 +227,22 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                 worksheet.write(row_num, 25, 0)
 
             # Buscamos el indice del 4% en porcentaje_iva
-            indice_porcentaje_iva_4 = porcentaje_iva.index(4) if 4 in porcentaje_iva else 0
+            indice_porcentaje_iva_4 = porcentaje_iva.index(4) if 4 in porcentaje_iva else -1
 
-            if indice_porcentaje_iva_4 > 0:
+            if indice_porcentaje_iva_4 >= 0:
+
+                print("base_imponible:", base_imponible)
+                print("porcentaje_iva:", porcentaje_iva)
+                print("total_iva:", total_iva)
+                print("porcentaje_recargo:", porcentaje_recargo)
+                print("total_recargo:", total_recargo)
+                print("indice_porcentaje_iva_4:", indice_porcentaje_iva_4)
+
                 worksheet.write(row_num, 26, base_imponible[indice_porcentaje_iva_4])
                 worksheet.write(row_num, 27, porcentaje_iva[indice_porcentaje_iva_4])
                 worksheet.write(row_num, 28, total_iva[indice_porcentaje_iva_4])
-                worksheet.write(row_num, 29, porcentaje_recargo[indice_porcentaje_iva_4] if len(porcentaje_recargo) > 0 else 0)
-                worksheet.write(row_num, 30, total_recargo[indice_porcentaje_iva_4] if len(total_recargo) > 0 else 0)
+                worksheet.write(row_num, 29, porcentaje_recargo[indice_porcentaje_iva_4] if indice_porcentaje_iva_4 < len(porcentaje_recargo) else 0)
+                worksheet.write(row_num, 30, total_recargo[indice_porcentaje_iva_4] if indice_porcentaje_iva_4 < len(porcentaje_recargo) else 0)
             else:
                 worksheet.write(row_num, 26, 0)
                 worksheet.write(row_num, 27, 0)
@@ -240,14 +270,22 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 48, "")  # 'CodDepartamento',
 
             # Buscamos el indice del 0% en porcentaje_iva
-            indice_porcentaje_iva_0 = porcentaje_iva.index(0) if 0 in porcentaje_iva else 0
+            indice_porcentaje_iva_0 = porcentaje_iva.index(0) if 0 in porcentaje_iva else -1
+            if indice_porcentaje_iva_0 >= 0:
 
-            if indice_porcentaje_iva_0 > 0:
+                print("base_imponible:", base_imponible)
+                print("porcentaje_iva:", porcentaje_iva)
+                print("total_iva:", total_iva)
+                print("porcentaje_recargo:", porcentaje_recargo)
+                print("total_recargo:", total_recargo)
+                print("indice_porcentaje_iva_0:", indice_porcentaje_iva_0)
+                print("len(porcentaje_recargo):", len(porcentaje_recargo) )
+
                 worksheet.write(row_num, 49, base_imponible[indice_porcentaje_iva_0])
                 worksheet.write(row_num, 50, porcentaje_iva[indice_porcentaje_iva_0])
                 worksheet.write(row_num, 51, total_iva[indice_porcentaje_iva_0])
-                worksheet.write(row_num, 52, porcentaje_recargo[indice_porcentaje_iva_0] if len(porcentaje_recargo) > 0 else 0)
-                worksheet.write(row_num, 53, total_recargo[indice_porcentaje_iva_0] if len(total_recargo) > 0 else 0)
+                worksheet.write(row_num, 52, porcentaje_recargo[indice_porcentaje_iva_0] if indice_porcentaje_iva_0 < len(porcentaje_recargo) else 0)
+                worksheet.write(row_num, 53, total_recargo[indice_porcentaje_iva_0] if indice_porcentaje_iva_0 < len(porcentaje_recargo) else 0)
             else:
                 worksheet.write(row_num, 49, 0)
                 worksheet.write(row_num, 50, 0)
