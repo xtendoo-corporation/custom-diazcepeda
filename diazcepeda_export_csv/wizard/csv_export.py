@@ -161,19 +161,27 @@ class DiazCepedaExportCSV(models.TransientModel):
                 total_importe_regalo = 0
                 if line.discount != 0:
                     if line.product_id.codigo_normalizado != '':
-                        total_importe_descuento = line.quantity * ( ( line.price_unit * line.discount ) / 100 )
+                        total_importe_descuento = total_unidades_venta * ( ( line.price_unit * line.discount ) / 100 )
                     else:
-                        total_importe_descuento = line.quantity * ( ( line.product_id.standard_price * line.discount ) / 100 )
+                        total_importe_descuento = total_unidades_venta * ( ( line.product_id.standard_price * line.discount ) / 100 )
 
             else:
-                total_unidades_regalo = line.quantity
-                total_importe_regalo = line.quantity * line.product_id.lst_price
+                total_unidades_regalo = total_unidades_venta
+                total_importe_regalo = total_unidades_venta * line.product_id.lst_price
+
+            print("Factura: ", line.move_id.name)
+            print("Producto: ", line.product_id.default_code)
+            print("Unidades venta: ", total_unidades_venta)
+            print("Precio unitario: ", line.price_unit)
+            print("Descuento: ", line.discount)
+            print("Unidades regalo: ", total_unidades_regalo)
+            print("Importe regalo: ", total_importe_regalo)
+            print("Importe descuento: ", total_importe_descuento)
 
             # Check if the product already exists in the products array
             product_exists = False
             for product in products:
-                if (product["invoice_number"] == line.move_id.name and
-                    product["default_code"] == line.product_id.default_code):
+                if product["invoice_number"] == line.move_id.name and product["default_code"] == line.product_id.default_code:
                     product["total_unidades_venta"] += total_unidades_venta
                     product["total_unidades_regalo"] += total_unidades_regalo
                     product["total_importe_regalo"] += total_importe_regalo
@@ -206,12 +214,13 @@ class DiazCepedaExportCSV(models.TransientModel):
                     product["invoice_date"],
                     product["invoice_number"],
                     CONCESIONARIO,
+                    product["partner_ref"],
                     product["auxiliar_reference"],
                     str( product["total_unidades_venta"] ).replace(".", ","),
                     str( product["total_unidades_regalo"] ).replace(".", ","),
-                    str( product["total_importe_regalo"] ).replace(".", ","),
-                    str( product["total_importe_descuento"] ).replace(".", ","),
-                    str( product["total_importe_regalo"] + product["total_importe_descuento"] ).replace(".", ","),
+                    str(round(product["total_importe_regalo"],2)).replace(".", ","),
+                    str(round(product["total_importe_descuento"], 2)).replace(".", ","),
+                    str(round(product["total_importe_regalo"] + product["total_importe_descuento"],2)).replace(".", ","),
                 ])
 
         return path

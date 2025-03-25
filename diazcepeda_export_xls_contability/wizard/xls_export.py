@@ -108,6 +108,7 @@ class DiazCepedaExportXLSContability(models.TransientModel):
 
         # Write data
         for row_num, invoice in enumerate(invoices, start=1):
+            is_refound = invoice.move_type in ['out_refund', 'in_refund']
 
             # Initialize VAT breakdown columns
             base_imponible = []
@@ -121,37 +122,56 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             total_retenciones = 0
 
             for key, tax_total in invoice.tax_totals.items():
+
+                print("*"*80)
+                print("key:", key)
+                print("tax_total:", tax_total)
+
                 if key == 'groups_by_subtotal':
                     groups = tax_total['Base imponible']
                     for group in groups:
+
+                        print("-"*80)
+                        print("group:", group)
+
                         tax_group = self.env['account.tax.group'].browse(group['tax_group_id'])
                         if tax_group:
                             account_taxes = self.env['account.tax'].search([('tax_group_id', '=', tax_group.id)])
                             if account_taxes:
                                 account_tax = account_taxes[0]
-                                group['tax_group_amount'] = account_tax.amount
+
+                                print("tax_group_amount antesssssssssssssssssssss:", group['tax_group_amount'])
+                                group['tax_group_percentage'] = account_tax.amount
+                                print("tax_group_amount despuesssssssssssssssssss", group['tax_group_amount'])
+                                print("group despuesssssssssssssssssssss:", group)
+
                                 group['tax_l10n_es_type'] = account_tax.l10n_es_type
 
-                    for group in sorted(filter(lambda x: 'sujeto' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
-                        base_imponible.append(group['tax_group_base_amount'])
-                        if group['tax_group_amount'] == 0:
+                    for group in sorted(filter(lambda x: 'sujeto' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_percentage']):
+                        base_imponible.append(group['tax_group_base_amount'] if not is_refound else -group['tax_group_base_amount'])
+                        if group['tax_group_percentage'] == 0:
                             porcentaje_iva.append(0)
                             total_iva.append(0)
                             porcentaje_recargo.append(0)
                             total_recargo.append(0)
                         else:
-                            porcentaje_iva.append(group['tax_group_amount'])
-                            total_iva.append(group['tax_group_base_amount'] * group['tax_group_amount'] / 100)
 
-                    for group in sorted(filter(lambda x: 'recargo' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
-                        porcentaje_recargo.append(group['tax_group_amount'])
-                        total_recargo.append(group['tax_group_base_amount'] * group['tax_group_amount'] / 100)
+                            print("#"*80)
+                            print("group['tax_group_amount']:", group['tax_group_amount'])
+                            print("group['tax_group_base_amount']:", group['tax_group_base_amount'])
 
-                    for group in sorted(filter(lambda x: 'retencion' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_amount']):
+                            porcentaje_iva.append(group['tax_group_percentage'])
+                            total_iva.append(group['tax_group_amount'] if not is_refound else -group['tax_group_amount'])
+
+                    for group in sorted(filter(lambda x: 'recargo' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_percentage']):
+                        porcentaje_recargo.append(group['tax_group_percentage'])
+                        total_recargo.append(group['tax_group_amount'] if not is_refound else -group['tax_group_amount'])
+
+                    for group in sorted(filter(lambda x: 'retencion' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_percentage']):
                         base_retenciones = group['tax_group_base_amount']
                         codigo_retenciones = group['tax_group_name']
-                        porcentaje_retenciones += group['tax_group_amount']
-                        total_retenciones += group['tax_group_base_amount'] * group['tax_group_amount'] / 100
+                        porcentaje_retenciones += group['tax_group_percentage']
+                        total_retenciones += group['tax_group_amount']
 
             # Escribo los datos en el excel
             worksheet.write(row_num, 0, "FAC/" + str(invoice.invoice_date.year))  # 'Serie',
