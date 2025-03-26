@@ -174,11 +174,11 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                         total_retenciones += group['tax_group_amount']
 
             invoice_name = invoice.name
-            if invoice_name.startswith("RFAC"):
-                invoice_name = invoice_name.replace("RFAC", "")
-            if invoice_name.startswith("FAC"):
-                invoice_name = invoice_name.replace("FAC", "")
-            invoice_name = invoice_name.replace("/", "")
+            if invoice_name.startswith("RFAC/"):
+                invoice_name = invoice_name.replace("RFAC/", "")
+                invoice_name = "9" + invoice_name
+            if invoice_name.startswith("FAC/"):
+                invoice_name = invoice_name.replace("FAC/", "")
 
             invoice_vat = invoice.partner_id.vat
             if invoice_vat:
