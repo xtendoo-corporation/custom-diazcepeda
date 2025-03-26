@@ -174,27 +174,21 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                         total_retenciones += group['tax_group_amount']
 
             # Escribo los datos en el excel
-            worksheet.write(row_num, 0, "FAC/" + str(invoice.invoice_date.year))  # 'Serie',
-            worksheet.write(row_num, 1, invoice.name)  # 'Factura',
+            worksheet.write(row_num, 0, str(invoice.invoice_date.year))  # 'Serie',
+            worksheet.write(row_num, 1, invoice.name.replace("/","")) # 'Factura',
             worksheet.write(row_num, 2, str(invoice.invoice_date.day) + "/" + str(invoice.invoice_date.month) + "/" + str(invoice.invoice_date.year))  # 'Fecha',
             worksheet.write(row_num, 3, str(invoice.invoice_date.day) + "/" + str(invoice.invoice_date.month) + "/" + str(invoice.invoice_date.year))  # 'FechaOperacion',
             worksheet.write(row_num, 4, "")  # 'CodigoCuenta',mu
             worksheet.write(row_num, 5, invoice.partner_id.vat)  # 'CIFEUROPEO',
             worksheet.write(row_num, 6, invoice.partner_id.name)  # 'Cliente',
-            worksheet.write(row_num, 7, "N/ FRA. Nº. " + invoice.name + " - " + invoice.partner_id.name)  # 'Comentario',
+            worksheet.write(row_num, 7, "FRA. Nº. " + invoice.name + " - " + invoice.partner_id.name)  # 'Comentario',
             worksheet.write(row_num, 8, "")  # 'Contrapartida',
             worksheet.write(row_num, 9, "")  # 'Cod.Transacion',
             worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
             worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
 
-            print("*"*80)
-            print("porcentaje_iva:", porcentaje_iva)
-
-            # Buscamos el indice del 21% en porcentaje_iva
+            # Buscamos el indice del 21% en porcentaje_iva *
             indice_porcentaje_iva_21 = porcentaje_iva.index(21.0) if 21.0 in porcentaje_iva else -1
-
-            print("indice_porcentaje_iva_21:", indice_porcentaje_iva_21)
-
             if indice_porcentaje_iva_21 >= 0:
 
                 print("base_imponible:", base_imponible)
