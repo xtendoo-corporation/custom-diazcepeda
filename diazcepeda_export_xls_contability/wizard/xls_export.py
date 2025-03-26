@@ -179,13 +179,17 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             if invoice_name.startswith("FAC"):
                 invoice_name = invoice_name.replace("FAC", "")
 
+            invoice_vat = invoice.partner_id.vat
+            if invoice_vat:
+                invoice_vat = invoice_vat.replace("ES", "")
+
             # Escribo los datos en el excel
             worksheet.write(row_num, 0, str(invoice.invoice_date.year))  # 'Serie',
             worksheet.write(row_num, 1, invoice_name) # 'Factura',
             worksheet.write(row_num, 2, str(invoice.invoice_date.day) + "/" + str(invoice.invoice_date.month) + "/" + str(invoice.invoice_date.year))  # 'Fecha',
             worksheet.write(row_num, 3, str(invoice.invoice_date.day) + "/" + str(invoice.invoice_date.month) + "/" + str(invoice.invoice_date.year))  # 'FechaOperacion',
             worksheet.write(row_num, 4, "")  # 'CodigoCuenta',mu
-            worksheet.write(row_num, 5, invoice.partner_id.vat.repalace("ES",""))  # 'CIFEUROPEO',
+            worksheet.write(row_num, 5, invoice_vat)  # 'CIFEUROPEO',
             worksheet.write(row_num, 6, invoice.partner_id.name)  # 'Cliente',
             worksheet.write(row_num, 7, "FRA. Nº. " + invoice_name + " - " + invoice.partner_id.name)  # 'Comentario',
             worksheet.write(row_num, 8, "")  # 'Contrapartida',
