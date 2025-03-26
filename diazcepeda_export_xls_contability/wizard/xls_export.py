@@ -185,7 +185,7 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.write(row_num, 8, "")  # 'Contrapartida',
             worksheet.write(row_num, 9, "")  # 'Cod.Transacion',
             worksheet.write(row_num, 10, "") # 'ClaveOperaciónFact',
-            worksheet.write(row_num, 11, invoice.amount_total) # 'Importe Factura'
+            worksheet.write(row_num, 11, invoice.amount_total if not is_refound else -invoice.amount_total) # 'Importe Factura'
 
             # Buscamos el indice del 21% en porcentaje_iva *
             indice_porcentaje_iva_21 = porcentaje_iva.index(21.0) if 21.0 in porcentaje_iva else -1
