@@ -179,6 +179,7 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                 invoice_name = "9" + invoice_name
             if invoice_name.startswith("FAC"):
                 invoice_name = invoice_name.replace("FAC", "")
+            invoice_name = invoice_name.replace("2025", "25")
             invoice_name = invoice_name.replace("/", "")
 
             invoice_vat = invoice.partner_id.vat
