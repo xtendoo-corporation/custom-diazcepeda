@@ -24,6 +24,8 @@ except ImportError:  # pragma: no cover
     _logger.debug("Cannot import pysftp")
 
 CONCESIONARIO: str = '02055342'
+FTP_SERVER: str = '13.93.124.174'
+FTP_DIRECTORY: str = ''
 
 def _default_start_date():
     today = date.today()
@@ -46,9 +48,6 @@ class DiazCepedaExportCSV(models.TransientModel):
     csv_file = fields.Binary(string="CSV File", readonly=True)
     csv_file_name = fields.Char(string="CSV File Name", readonly=True)
 
-    ftp_server = '13.93.124.174'
-    ftp_directory = ''
-
     def export_file(self):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
         self.ensure_one()
@@ -68,17 +67,17 @@ class DiazCepedaExportCSV(models.TransientModel):
         if file_path_a:
             print("File A created at:", file_path_a)
             self.show_csv_content(file_path_a)
-            self.upload_csv_to_ftp(file_path_a, self.ftp_server, self.ftp_directory)
+            self.upload_csv_to_ftp(file_path_a)
 
         if file_path_b:
             print("File B created at:", file_path_b)
             self.show_csv_content(file_path_b)
-            self.upload_csv_to_ftp(file_path_b, self.ftp_server, self.ftp_directory)
+            self.upload_csv_to_ftp(file_path_b)
 
         if file_path_c:
             print("File C created at:", file_path_c)
             self.show_csv_content(file_path_c)
-            self.upload_csv_to_ftp(file_path_c, self.ftp_server, self.ftp_directory)
+            self.upload_csv_to_ftp(file_path_c)
 
         zip_path = '/tmp/invoices_csv.zip'
         with zipfile.ZipFile(zip_path, 'w') as zipf:
@@ -315,9 +314,9 @@ class DiazCepedaExportCSV(models.TransientModel):
                 print(row)
         print("***************************************************")
 
-    def upload_csv_to_ftp(self, file_path, ftp_directory):
+    def upload_csv_to_ftp(self, file_path):
         with self.sftp_connection() as sftp:
-            sftp.cwd(ftp_directory)
+            sftp.cwd(FTP_DIRECTORY)
             sftp.put(file_path, os.path.basename(file_path))
 
     def action_sftp_test_connection(self):
