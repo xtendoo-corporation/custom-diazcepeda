@@ -178,6 +178,7 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                 invoice_name = invoice_name.replace("RFAC", "")
             if invoice_name.startswith("FAC"):
                 invoice_name = invoice_name.replace("FAC", "")
+            invoice_name = invoice_name.replace("/", "")
 
             invoice_vat = invoice.partner_id.vat
             if invoice_vat:
