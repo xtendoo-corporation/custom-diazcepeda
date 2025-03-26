@@ -350,7 +350,7 @@ class DiazCepedaExportCSV(models.TransientModel):
         ftp_password = self.env['ir.config_parameter'].sudo().get_param('ftp_password')
 
         params = {
-            "host": self.ftp_server,
+            "host": FTP_SERVER,
             "username": ftp_user,
             "port": 22,
         }
