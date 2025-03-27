@@ -1,11 +1,9 @@
-import ftplib
 import logging
 import base64
 import os
 import csv
 import zipfile
 from datetime import date, timedelta
-from itertools import product
 
 from odoo.exceptions import UserError
 
@@ -28,25 +26,33 @@ FTP_SERVER: str = '13.93.124.174'
 FTP_DIRECTORY: str = ''
 
 def _default_start_date():
-    today = date.today()
-    return today.replace(day=1)
+    return date.today() - timedelta(days=7)
 
 def _default_end_date():
-    today = date.today()
-    next_month = today.replace(day=28) + timedelta(days=4)
-    return next_month - timedelta(days=next_month.day)
-
+    return date.today()
 
 class DiazCepedaExportCSV(models.TransientModel):
     _name = "diazcepeda.export.csv"
     _description = "Exportador Diaz Cepeda"
 
-    start_date = fields.Date(string="Fecha inicio", required=True, default=_default_start_date() )
-
-    end_date = fields.Date(string="Fecha fin", required=True, default=_default_end_date() )
-
-    csv_file = fields.Binary(string="CSV File", readonly=True)
-    csv_file_name = fields.Char(string="CSV File Name", readonly=True)
+    start_date = fields.Date(
+        string="Fecha inicio",
+        required=True,
+        default=_default_start_date()
+    )
+    end_date = fields.Date(
+        string="Fecha fin",
+        required=True,
+        default=_default_end_date()
+    )
+    csv_file = fields.Binary(
+        string="CSV File",
+        readonly=True
+    )
+    csv_file_name = fields.Char(
+        string="CSV File Name",
+        readonly=True
+    )
 
     def export_file(self):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
@@ -145,8 +151,16 @@ class DiazCepedaExportCSV(models.TransientModel):
             'target': 'self',
         }
 
+    def get_start_date_month(self):
+        if self.start_date:
+            return str(self.start_date.month).zfill(2)
+        return '01'
+
+    def get_file_name(self, suffix='A'):
+        return 'tmp/55342' + self.get_start_date_month() + suffix + '.csv'
+
     def create_a_csv(self, invoices_lines):
-        path = '/tmp/5534201A.csv'
+        path = self.get_file_name('A')
 
         # Preparamos un array con los datos que queremos exportar
         products = []
@@ -225,7 +239,7 @@ class DiazCepedaExportCSV(models.TransientModel):
         return path
 
     def create_b_csv(self, invoices_lines):
-        path = '/tmp/5534201B.csv'
+        path = self.get_file_name('B')
 
         # Preparamos un array con los datos que queremos exportar
         products = []
@@ -268,8 +282,8 @@ class DiazCepedaExportCSV(models.TransientModel):
         return path
 
     def create_c_csv(self, partners):
+        path = self.get_file_name('C')
 
-        path = '/tmp/5534201C.csv'
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, mode='w', newline='') as file:
             writer = csv.writer(file, delimiter=';')

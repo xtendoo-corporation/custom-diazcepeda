@@ -143,7 +143,6 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                                 print("tax_group_amount antesssssssssssssssssssss:", group['tax_group_amount'])
                                 group['tax_group_percentage'] = account_tax.amount
                                 print("tax_group_amount despuesssssssssssssssssss", group['tax_group_amount'])
-                                print("group despuesssssssssssssssssssss:", group)
 
                                 group['tax_l10n_es_type'] = account_tax.l10n_es_type
 
