@@ -157,10 +157,12 @@ class DiazCepedaExportCSV(models.TransientModel):
         return '01'
 
     def get_file_name(self, suffix='A'):
-        return 'tmp/55342' + self.get_start_date_month() + suffix + '.csv'
+        return '/tmp/55342' + self.get_start_date_month() + suffix + '.csv'
 
     def create_a_csv(self, invoices_lines):
         path = self.get_file_name('A')
+
+        print("Creating file A at**************************************", path)
 
         # Preparamos un array con los datos que queremos exportar
         products = []
