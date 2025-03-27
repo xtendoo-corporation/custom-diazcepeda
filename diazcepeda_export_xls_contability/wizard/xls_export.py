@@ -135,15 +135,14 @@ class DiazCepedaExportXLSContability(models.TransientModel):
                         print("group:", group)
 
                         tax_group = self.env['account.tax.group'].browse(group['tax_group_id'])
+
+                        print("tax_group:", tax_group)
+
                         if tax_group:
                             account_taxes = self.env['account.tax'].search([('tax_group_id', '=', tax_group.id)])
                             if account_taxes:
                                 account_tax = account_taxes[0]
-
-                                print("tax_group_amount antesssssssssssssssssssss:", group['tax_group_amount'])
                                 group['tax_group_percentage'] = account_tax.amount
-                                print("tax_group_amount despuesssssssssssssssssss", group['tax_group_amount'])
-
                                 group['tax_l10n_es_type'] = account_tax.l10n_es_type
 
                     for group in sorted(filter(lambda x: 'sujeto' in x['tax_l10n_es_type'], groups), key=lambda x: x['tax_group_percentage']):

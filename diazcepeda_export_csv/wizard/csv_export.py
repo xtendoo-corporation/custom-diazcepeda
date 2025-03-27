@@ -108,8 +108,8 @@ class DiazCepedaExportCSV(models.TransientModel):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
         self.ensure_one()
 
-        # SACO LOS DATOS QUE NECESITO Y SE LO PASO A LA FUNCION QUE CREA EL CSV
         invoices = self.env['account.move'].search([
+            ('move_type', '=', 'out_invoice'),
             ('invoice_date', '>=', self.start_date),
             ('invoice_date', '<=', self.end_date)]
         )
