@@ -162,8 +162,6 @@ class DiazCepedaExportCSV(models.TransientModel):
     def create_a_csv(self, invoices_lines):
         path = self.get_file_name('A')
 
-        print("Creating file A at**************************************", path)
-
         # Preparamos un array con los datos que queremos exportar
         products = []
 
@@ -183,15 +181,6 @@ class DiazCepedaExportCSV(models.TransientModel):
             else:
                 total_unidades_regalo = total_unidades_venta
                 total_importe_regalo = total_unidades_venta * line.product_id.lst_price
-
-            print("Factura: ", line.move_id.name)
-            print("Producto: ", line.product_id.default_code)
-            print("Unidades venta: ", total_unidades_venta)
-            print("Precio unitario: ", line.price_unit)
-            print("Descuento: ", line.discount)
-            print("Unidades regalo: ", total_unidades_regalo)
-            print("Importe regalo: ", total_importe_regalo)
-            print("Importe descuento: ", total_importe_descuento)
 
             # Check if the product already exists in the products array
             product_exists = False
@@ -322,13 +311,11 @@ class DiazCepedaExportCSV(models.TransientModel):
         return real_stock
 
     def show_csv_content(self, file_path):
-        print("***************************************************")
         print("File created at:", file_path)
         with open(file_path, mode='r', newline='') as file:
             reader = csv.reader(file)
             for row in reader:
                 print(row)
-        print("***************************************************")
 
     def upload_csv_to_ftp(self, file_path):
         with self.sftp_connection() as sftp:
