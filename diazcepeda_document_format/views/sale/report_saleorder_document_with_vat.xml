@@ -82,12 +82,12 @@
                         <tr>
                             <th name="th_description" class="text-start">Descripción</th>
                             <th name="th_quantity" class="text-end">Cantidad</th>
-                            <th name="th_priceunit" class="text-end">Precio</th>
+                            <th name="th_priceunit" class="text-end">Precio (IVA incl.)</th>
                             <th name="th_discount" t-if="display_discount" class="text-end">
                                 <span>Desc.%</span>
                             </th>
                             <th name="th_subtotal" class="text-end">
-                                <span>Importe</span>
+                                <span>Importe (IVA incl.)</span>
                             </th>
                         </tr>
                     </thead>
@@ -108,7 +108,15 @@
                                         <span t-field="line.product_uom_qty">3</span>
                                     </td>
                                     <td name="td_priceunit" class="text-end">
-                                        <span t-field="line.price_unit">3</span>
+                                        <!-- Precio unitario con IVA incluido -->
+                                        <t t-if="line.product_uom_qty">
+                                            <span t-esc="line.price_total / line.product_uom_qty"
+                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        </t>
+                                        <t t-else="">
+                                            <span t-field="line.price_unit"
+                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        </t>
                                     </td>
                                     <td t-if="display_discount" class="text-end">
                                         <span t-field="line.discount">-</span>
@@ -159,11 +167,11 @@
                     </div>
                     <div id="total" class="row" name="total">
                         <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">
-<!--                            <table class="table table-sm table-borderless">-->
-<!--                                &lt;!&ndash; Tax totals &ndash;&gt;-->
-<!--                                <t t-set="tax_totals" t-value="doc.tax_totals"/>-->
-<!--                                <t t-call="sale.document_tax_totals"/>-->
-<!--                            </table>-->
+                            <table class="table table-sm table-borderless">
+                                <!-- Tax totals -->
+                                <t t-set="tax_totals" t-value="doc.tax_totals"/>
+                                <t t-call="sale.document_tax_totals"/>
+                            </table>
                         </div>
                     </div>
                 </div>

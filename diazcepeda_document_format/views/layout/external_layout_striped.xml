@@ -48,6 +48,9 @@
                     <div t-if="show_gastos_gestion" class="text-muted" style="margin-top:-23px;">
                         <span>Este documento incluye 1 € de gastos de gestión.</span>
                     </div>
+                    <div class="text-muted">
+                        <span><strong>DEL 19 AL 27 JULIO CERRADO POR VACACIONES</strong></span>
+                    </div>
                     <div t-if="report_type == 'pdf'">
                         Page: <span class="page"/> / <span class="topage"/>
                     </div>
