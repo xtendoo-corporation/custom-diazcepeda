@@ -1,6 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- Plantilla para facturas -->
+    <template id="custom_layout_invoice" inherit_id="web.external_layout_boxed">
+        <!--Header-->
+        <xpath expr="//div[@class='o_boxed_header']" position="replace">
+            <div class="o_boxed_header" t-if="is_preprinted != 2">
+            <div class="row mb8">
+                <div class="col-6">
+                    <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="Logo"/>
+                </div>
+                <div class="col-6 text-end mb4">
+                    <t t-if="company.report_header and company.report_header.strip() != '&lt;p&gt;&lt;br&gt;&lt;/p&gt;'">
+                        <div class="mt0 h4" t-field="company.report_header"/>
+                    </t>
+                    <div name="company_address" class="float-end mb4">
+                        <ul class="list-unstyled" name="company_address_list">
+                            <li t-if="company.is_company_details_empty"><span t-field="company.partner_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;], &quot;no_marker&quot;: true}">
+                                <div class="bg-light border-1 rounded h-100 d-flex flex-column align-items-center justify-content-center p-4 w-100 opacity-75 text-muted text-center">
+                                    <strong>Company address block</strong>
+                                    <div>Contains the company address.</div>
+                                </div>
+                            </span></li>
+                            <li t-else="">
+                                <span t-field="company.company_details">
+                                    <div class="bg-light border-1 rounded h-100 d-flex flex-column align-items-center justify-content-center p-4 w-100 opacity-75 text-muted text-center">
+                                        <strong>Company details block</strong>
+                                        <div>Contains the company details.</div>
+                                    </div>
+                                </span>
+                            </li>
+                            <li t-if="not forced_vat"/>
+                            <li t-else="">
+                                <t t-esc="company.country_id.vat_label or 'Tax ID'">Tax ID</t>:
+                                <span t-esc="forced_vat">US12345671</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </xpath>
+        <!--Fin Header -->
+
+        <!--Footer-->
+        <xpath expr="//div[contains(@t-attf-class, 'footer o_boxed_footer')]" position="replace">
+            <div t-attf-class="footer o_boxed_footer o_company_#{company.id}_layout" t-if="is_preprinted != 2">
+                <div class="text-center">
+                    <div t-field="company.report_footer">Company Report Footer</div>
+                    <div t-if="show_gastos_gestion" class="text-muted" style="margin-top:-23px;">
+                        <span>Este documento incluye 1 € de gastos de gestión.</span>
+                    </div>
+                    <div t-if="report_type == 'pdf'">
+                        Page: <span class="page"/> / <span class="topage"/>
+                    </div>
+                    <div t-if="report_type == 'pdf' and display_name_in_footer" class="text-muted">
+                        <span t-out="o.name">(document name)</span>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+        <!--Fin Footer -->
+    </template>
+
+    <!-- Plantilla para facturas
     <template id="report_invoice_document_inherit_vacation" inherit_id="account.report_invoice_document">
         <xpath expr="//h2" position="replace">
             <table class="table table-sm mt-2 mb-3" style="border: none;">
@@ -33,8 +94,9 @@
             </table>
         </xpath>
     </template>
+    -->
 
-    <!-- Plantilla para pedidos de venta -->
+    <!-- Plantilla para pedidos de venta
     <template id="report_saleorder_document_inherit_vacation" inherit_id="sale.report_saleorder_document">
         <xpath expr="//h2" position="replace">
             <table class="table table-sm mt-2 mb-3" style="border: none;">
@@ -61,8 +123,9 @@
             </table>
         </xpath>
     </template>
+    -->
 
-    <!-- Plantilla para albaranes de entrega -->
+    <!-- Plantilla para albaranes de entrega
     <template id="report_delivery_document_inherit_vacation" inherit_id="stock.report_delivery_document">
         <xpath expr="//h2" position="replace">
             <table class="table table-sm mt-2 mb-3" style="border: none;">
@@ -95,4 +158,5 @@
             </table>
         </xpath>
     </template>
+    -->
 </odoo>

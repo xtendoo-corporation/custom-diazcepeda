@@ -1,6 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <template id="report_saleorder_document_inherit" inherit_id="sale.report_saleorder_document">
+
+        <xpath expr="//h2" position="replace">
+            <table class="table table-sm mt-2 mb-3" style="border: none;">
+                <tr>
+                    <td class="text-left" style="border: none;">
+                        <h2>
+                            <t t-if="doc.state in ('draft', 'sent')">
+                                <span style="font-weight: normal;">Presupuesto: </span>
+                            </t>
+                            <t t-else="">
+                                <span style="font-weight: normal;">Pedido: </span>
+                            </t>
+                            <span t-field="doc.name"/>
+                        </h2>
+                    </td>
+                    <td class="text-right" style="border: none;">
+                        <div class="text-muted">
+                            <span>
+                                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </xpath>
+
         <xpath expr="//th[@name='th_priceunit']" position="replace">
             <th name="th_priceunit" class="text-end">Precio</th>
         </xpath>
@@ -29,8 +55,7 @@
         </xpath>
     </template>
 
-      <!--Informe-->
-
+    <!--Informe-->
     <record id="action_report_saleorder_copy" model="ir.actions.report">
         <field name="name">Presupuesto en PDF Copia</field>
         <field name="model">sale.order</field>

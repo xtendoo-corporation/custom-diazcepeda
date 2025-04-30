@@ -27,6 +27,38 @@
 
     <!-- Documento -->
     <template id="report_invoice_document_inherit" inherit_id="account.report_invoice_document">
+
+        <xpath expr="//h2" position="replace">
+            <table class="table table-sm mt-2 mb-3" style="border: none;">
+                <tr>
+                    <td class="text-left" style="border: none;">
+                        <h2>
+                            <t t-if="o.state == 'draft'">
+                                <span style="font-weight: normal;">Borrador de Factura: </span>
+                            </t>
+                            <t t-elif="o.move_type == 'out_refund'">
+                                <span style="font-weight: normal;">Factura Rectificativa: </span>
+                            </t>
+                            <t t-elif="o.move_type == 'in_invoice'">
+                                <span style="font-weight: normal;">Factura de Proveedor: </span>
+                            </t>
+                            <t t-else="">
+                                <span style="font-weight: normal;">Factura: </span>
+                            </t>
+                            <span t-field="o.name"/>
+                        </h2>
+                    </td>
+                    <td class="text-right" style="border: none;">
+                        <div class="text-muted">
+                            <span>
+                                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </xpath>
+
         <xpath expr="//th[@name='th_priceunit']" position="replace">
             <th name="th_priceunit"
                 t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
@@ -62,7 +94,6 @@
                 <p style="font-weight:bolder;color:black;">*Este documento es una copia.</p>
             </t>
         </xpath>
-
 
         <xpath expr="//table[@name='invoice_snln_table']" position="attributes">
             <attribute name="style">display: none;</attribute>
