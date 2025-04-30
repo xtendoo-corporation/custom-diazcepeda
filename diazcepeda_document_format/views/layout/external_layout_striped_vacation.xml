@@ -9,11 +9,11 @@
                         <h2 t-field="o.name"/>
                     </td>
                     <td class="text-right" style="border: none;">
-                        <t t-if="env['ir.config_parameter'].sudo().is_vacation_period()">
-                            <div class="text-muted">
-                                <span><strong>DEL 19 AL 27 JULIO CERRADO POR VACACIONES</strong></span>
-                            </div>
-                        </t>
+                        <div class="text-muted">
+                            <span>
+                                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
+                            </span>
+                        </div>
                     </td>
                 </tr>
             </table>
