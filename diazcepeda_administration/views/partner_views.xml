@@ -18,6 +18,11 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_res_partner_filter"/>
         <field name="arch" type="xml">
+            <!-- Añadir el campo ref como campo de búsqueda visible -->
+            <field name="name" position="after">
+                <field name="ref" string="Referencia"/>
+            </field>
+            <!-- Incluir ref en la búsqueda rápida -->
             <field name="name" position="attributes">
                 <attribute name="filter_domain">['|', '|', ('display_name', 'ilike', self), ('email', 'ilike', self), ('ref', 'ilike', self)]</attribute>
             </field>
