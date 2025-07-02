@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Heredar la vista tree de res.partner para añadir el campo ref -->
+    <record id="view_partner_tree_inherit_ref" model="ir.ui.view">
+        <field name="name">res.partner.tree.ref</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="display_name" position="after">
+                <field name="ref"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Añadir el campo ref a las búsquedas -->
+    <record id="view_res_partner_filter_inherit_ref" model="ir.ui.view">
+        <field name="name">res.partner.search.ref</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <field name="name" position="attributes">
+                <attribute name="filter_domain">['|', '|', ('display_name', 'ilike', self), ('email', 'ilike', self), ('ref', 'ilike', self)]</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>

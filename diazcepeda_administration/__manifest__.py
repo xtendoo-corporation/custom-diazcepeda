@@ -13,6 +13,7 @@
     ],
     "data": [
         "views/menu_views.xml",
+        "views/partner_views.xml",
     ],
     "installable": True,
     'application': True,
