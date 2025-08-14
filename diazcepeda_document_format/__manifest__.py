@@ -23,6 +23,7 @@
         "views/interface/product_template_view.xml",
         "views/sale/report_saleorder_document_with_vat.xml",
         "views/sale/report_saleorder_document_without_prices.xml",
+        "views/sale/report_saleorder_document_anonymous.xml",
     ],
     "installable": True,
     'application': False,

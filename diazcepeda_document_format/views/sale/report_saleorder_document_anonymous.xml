@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Template para el formato anónimo del pedido de venta -->
+    <template id="report_saleorder_document_anonymous_template" name="Anonymous Sale Order Document">
+        <t t-call="web.basic_layout">
+            <div class="page">
+                <!-- Solo el contenido principal sin cabecera ni pie identificativo -->
+                <div class="oe_structure"/>
+
+                <!-- Título del documento sin identificación de empresa -->
+                <div class="row mt-3 mb-3">
+                    <div class="col-12">
+                        <h2 class="text-center">
+                            <t t-if="doc.state in ('draft', 'sent')">
+                                Presupuesto
+                            </t>
+                            <t t-else="">
+                                Pedido de Venta
+                            </t>
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- Información básica del documento -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Número:</strong> <span t-field="doc.name"/>
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong>Fecha:</strong> <span t-field="doc.date_order" t-options='{"widget": "date"}'/>
+                    </div>
+                </div>
+
+                <!-- Información del cliente (sin datos sensibles de la empresa) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5>Cliente:</h5>
+                        <div>
+                            <strong t-field="doc.partner_id.name"/>
+                        </div>
+                        <div t-if="doc.partner_id.street">
+                            <span t-field="doc.partner_id.street"/>
+                        </div>
+                        <div>
+                            <span t-field="doc.partner_id.zip"/>
+                            <span t-field="doc.partner_id.city"/>
+                        </div>
+                        <div t-if="doc.partner_id.country_id">
+                            <span t-field="doc.partner_id.country_id.name"/>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de productos -->
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Descripción</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-end">Precio</th>
+                            <th class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="doc.order_line.filtered(lambda line: not line.display_type)" t-as="line">
+                            <tr>
+                                <td>
+                                    <span t-field="line.name"/>
+                                </td>
+                                <td class="text-end">
+                                    <span t-field="line.product_uom_qty"/>
+                                    <span groups="uom.group_uom" t-field="line.product_uom"/>
+                                </td>
+                                <td class="text-end">
+                                    <span t-field="line.price_unit"/>
+                                </td>
+                                <td class="text-end">
+                                    <span t-field="line.price_subtotal"/>
+                                </td>
+                            </tr>
+                        </t>
+
+                        <!-- Líneas de sección y nota -->
+                        <t t-foreach="doc.order_line.filtered(lambda line: line.display_type)" t-as="line">
+                            <tr t-if="line.display_type == 'line_section'">
+                                <td colspan="4" style="font-weight: bold; background-color: #f8f9fa;">
+                                    <span t-field="line.name"/>
+                                </td>
+                            </tr>
+                            <tr t-if="line.display_type == 'line_note'">
+                                <td colspan="4" style="font-style: italic;">
+                                    <span t-field="line.name"/>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <!-- Totales -->
+                <div class="row justify-content-end">
+                    <div class="col-4">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Subtotal:</strong></td>
+                                <td class="text-end">
+                                    <span t-field="doc.amount_untaxed"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Impuestos:</strong></td>
+                                <td class="text-end">
+                                    <span t-field="doc.amount_tax"/>
+                                </td>
+                            </tr>
+                            <tr style="border-top: 1px solid #000;">
+                                <td><strong>Total:</strong></td>
+                                <td class="text-end">
+                                    <strong t-field="doc.amount_total"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Términos y condiciones (si existen, pero sin identificar empresa) -->
+                <div t-if="doc.note" class="row mt-4">
+                    <div class="col-12">
+                        <h6>Observaciones:</h6>
+                        <span t-field="doc.note"/>
+                    </div>
+                </div>
+
+                <div class="oe_structure"/>
+            </div>
+        </t>
+    </template>
+
+    <!-- Reporte para el formato anónimo -->
+    <record id="action_report_saleorder_anonymous" model="ir.actions.report">
+        <field name="name">Presupuesto Anónimo (PDF)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">diazcepeda_document_format.report_saleorder_anonymous</field>
+        <field name="report_file">diazcepeda_document_format.report_saleorder_anonymous</field>
+        <field name="print_report_name">(object.state in ('draft', 'sent') and 'Presupuesto-Anonimo - %s' % (object.name)) or 'Pedido-Anonimo - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- Template principal que llamará al formato anónimo -->
+    <template id="report_saleorder_anonymous">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="diazcepeda_document_format.report_saleorder_document_anonymous_template" t-lang="doc.partner_id.lang"/>
+            </t>
+        </t>
+    </template>
+</odoo>
