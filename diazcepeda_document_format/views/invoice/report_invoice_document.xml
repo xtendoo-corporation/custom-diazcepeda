@@ -8,19 +8,21 @@
         <field name="report_name">diazcepeda_document_format.report_invoice_copy</field>
         <field name="report_file">diazcepeda_document_format.report_invoice_copy</field>
         <field name="print_report_name">(object._get_report_base_filename())</field>
-        <field name="attachment"/>
-        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="attachment" />
+        <field name="binding_model_id" ref="account.model_account_move" />
         <field name="binding_type">report</field>
     </record>
-    <!--Fin Informe -->
+    <!--Fin
+    Informe -->
     <template id="report_invoice_copy">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-set="lang" t-value="o.partner_id.lang"/>
-                <t t-set="is_copy" t-value="2"/>
+                <t t-set="lang" t-value="o.partner_id.lang" />
+                <t t-set="is_copy" t-value="2" />
+                <t t-set="print_with_payments" t-value="True" />
                 <t t-if="o._get_name_invoice_report() == 'account.report_invoice_document'"
-                   t-call="account.report_invoice_document"
-                   t-lang="lang"/>
+                    t-call="account.report_invoice_document"
+                    t-lang="lang" />
             </t>
         </t>
     </template>
@@ -45,13 +47,14 @@
                             <t t-else="">
                                 <span style="font-weight: normal;">Factura: </span>
                             </t>
-                            <span t-field="o.name"/>
+                            <span t-field="o.name" />
                         </h2>
                     </td>
                     <td class="text-right" style="border: none;">
                         <div class="text-muted">
                             <span>
-                                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
+                                <strong
+                                    t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')" />
                             </span>
                         </div>
                     </td>
@@ -74,11 +77,11 @@
 
         <xpath expr="//t[@t-set='lines']" position="replace">
             <t t-set="lines"
-               t-value="o._get_invoice_lines_to_report(o.invoice_line_ids.sorted(key=lambda l: (-l.sequence, l.date, l.move_name, -l.id), reverse=True))"/>
+                t-value="o._get_invoice_lines_to_report(o.invoice_line_ids.sorted(key=lambda l: (-l.sequence, l.date, l.move_name, -l.id), reverse=True))" />
         </xpath>
 
         <xpath expr="//div[@t-if='not is_html_empty(o.narration)']" position="after">
-            <t t-set="show_gastos_gestion" t-value="o._is_gasto_gestion()"/>
+            <t t-set="show_gastos_gestion" t-value="o._is_gasto_gestion()" />
             <t t-if="is_preprinted == 2">
                 <t t-if="show_gastos_gestion">
                     <span>Este documento incluye 1 € de gastos de gestión.</span>
@@ -101,78 +104,85 @@
 
         <xpath expr="//div[@name='origin']" position="replace">
             <t t-if="o.invoice_origin">
-                <div t-attf-class="#{'col-auto col-3 mw-100' if report_type != 'html' else 'col'} mb-2"
-                     t-if="',' not in o.invoice_origin" name="origin">
+                <div
+                    t-attf-class="#{'col-auto col-3 mw-100' if report_type != 'html' else 'col'} mb-2"
+                    t-if="',' not in o.invoice_origin" name="origin">
                     <strong>Origen:</strong>
-                    <br/>
+                    <br />
                     <span t-field="o.invoice_origin">SO123</span>
                 </div>
             </t>
         </xpath>
         <xpath expr="//div[@id='right-elements']" position="before">
             <div id="left-elements"
-                 t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
-                <t t-set="footer_data" t-value="o._get_footer_data()"/>
+                t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
+                <t t-set="footer_data" t-value="o._get_footer_data()" />
                 <div style="margin-left:-14%;">
-                    <span t-raw="footer_data"/>
+                    <span t-raw="footer_data" />
                 </div>
             </div>
         </xpath>
 
-        <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']/address" position="replace">
+        <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']/address"
+            position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}' />
         </xpath>
 
-        <xpath expr="//div[@name='address_same_as_shipping']/t[@t-set='address']/address" position="replace">
+        <xpath expr="//div[@name='address_same_as_shipping']/t[@t-set='address']/address"
+            position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}' />
         </xpath>
 
         <xpath expr="//div[@name='no_shipping']/t[@t-set='address']/address" position="replace">
             <address class="mb-0" t-field="o.partner_id"
-                     t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}'/>
+                t-options='{"widget": "contact", "fields": ["address", "name", "phone"], "no_marker": True}' />
         </xpath>
 
         <xpath expr="//tbody[@class='invoice_tbody']" position="replace">
             <tbody class="invoice_tbody">
-                <t t-set="grouped_lines" t-value="{}"/>
-                <t t-set="ungrouped_lines" t-value="[]"/>
-                <t t-set="lines" t-value="o._get_invoice_lines_to_report(o.invoice_line_ids.sorted(key=lambda l: (-l.sequence, l.date, l.move_name, -l.id), reverse=True))"/>
+                <t t-set="grouped_lines" t-value="{}" />
+                <t t-set="ungrouped_lines" t-value="[]" />
+                <t t-set="lines"
+                    t-value="o._get_invoice_lines_to_report(o.invoice_line_ids.sorted(key=lambda l: (-l.sequence, l.date, l.move_name, -l.id), reverse=True))" />
                 <t t-foreach="lines" t-as="line">
-                    <t t-set="sale_order" t-value="line.sale_line_ids.order_id"/>
+                    <t t-set="sale_order" t-value="line.sale_line_ids.order_id" />
                     <t t-if="sale_order">
-                        <t t-set="origin" t-value="sale_order.name"/>
+                        <t t-set="origin" t-value="sale_order.name" />
                         <t t-if="origin not in grouped_lines">
-                            <t t-set="grouped_lines" t-value="dict(grouped_lines, **{origin: [line]})"/>
+                            <t t-set="grouped_lines"
+                                t-value="dict(grouped_lines, **{origin: [line]})" />
                         </t>
                         <t t-else="">
                             <t t-set="grouped_lines"
-                               t-value="dict(grouped_lines, **{origin: grouped_lines[origin] + [line]})"/>
+                                t-value="dict(grouped_lines, **{origin: grouped_lines[origin] + [line]})" />
                         </t>
                     </t>
                     <t t-else="">
-                        <t t-set="ungrouped_lines" t-value="ungrouped_lines + [line]"/>
+                        <t t-set="ungrouped_lines" t-value="ungrouped_lines + [line]" />
                     </t>
                 </t>
 
                 <t t-foreach="grouped_lines.items()" t-as="group">
                     <tr>
                         <td colspan="6">
-                            <strong>Pedido:
-                                <t t-esc="group[0]"/>
+                            <strong>Pedido: <t t-esc="group[0]" />
                             </strong>
                         </td>
                     </tr>
 
                     <t t-foreach="group[1]" t-as="line">
-                        <tr t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
-                            <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
+                        <tr
+                            t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
+                            <t t-if="line.display_type == 'product'"
+                                name="account_invoice_line_accountable">
                                 <td name="account_invoice_line_name">
-                                    <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
-                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
+                                    <span t-if="line.name" t-field="line.name"
+                                        t-options="{'widget': 'text'}" />
+                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()" />
                                     <t t-if="lot_values">
-                                        <br/>
+                                        <br />
                                         <span>
                                             <i>• Lote</i>
                                         </span>
@@ -180,13 +190,13 @@
                                             <t t-if="line.name == snln_line['product_name']">
                                                 <span>
                                                     <i>
-                                                        <t t-esc="snln_line['lot_name']"/>
+                                                        <t t-esc="snln_line['lot_name']" />
                                                     </i>
                                                 </span>
                                                 <span>(</span>
                                                 <span>
                                                     <i>
-                                                        <t t-esc="snln_line['quantity']"/>
+                                                        <t t-esc="snln_line['quantity']" />
                                                     </i>
                                                 </span>
                                                 <span>)</span>
@@ -195,34 +205,34 @@
                                     </t>
                                 </td>
                                 <td name="td_quantity" class="text-end">
-                                    <span t-field="line.quantity"/>
+                                    <span t-field="line.quantity" />
                                 </td>
                                 <td name="td_price_unit"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
-                                    <span class="text-nowrap" t-field="line.price_unit"/>
+                                    <span class="text-nowrap" t-field="line.price_unit" />
                                 </td>
                                 <td name="td_discount" t-if="display_discount"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
-                                    <span class="text-nowrap" t-field="line.discount"/>
+                                    <span class="text-nowrap" t-field="line.discount" />
                                 </td>
                                 <t t-set="taxes"
-                                   t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_ids])"/>
+                                    t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_ids])" />
                                 <td name="td_taxes"
                                     t-attf-class="{{ 'd-none d-md-table-cell' if report_type == 'html' else '' }} {{ 'text-nowrap' if len(taxes) &lt; 10 else '' }}">
-                                    <span t-out="taxes" id="line_tax_ids"/>
+                                    <span t-out="taxes" id="line_tax_ids" />
                                 </td>
                                 <td name="td_subtotal" class="text-end o_price_total">
-                                    <span class="text-nowrap" t-field="line.price_subtotal"/>
+                                    <span class="text-nowrap" t-field="line.price_subtotal" />
                                 </td>
                             </t>
                             <t t-elif="line.display_type == 'line_section'">
                                 <td colspan="99">
-                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <span t-field="line.name" t-options="{'widget': 'text'}" />
                                 </td>
                             </t>
                             <t t-elif="line.display_type == 'line_note'">
                                 <td colspan="99">
-                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <span t-field="line.name" t-options="{'widget': 'text'}" />
                                 </td>
                             </t>
                         </tr>
@@ -235,13 +245,16 @@
                         </td>
                     </tr>
                     <t t-foreach="ungrouped_lines" t-as="line">
-                        <tr t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
-                            <t t-if="line.display_type == 'product'" name="account_invoice_line_accountable">
+                        <tr
+                            t-att-class="'bg-200 fw-bold o_line_section' if line.display_type == 'line_section' else 'fst-italic o_line_note' if line.display_type == 'line_note' else ''">
+                            <t t-if="line.display_type == 'product'"
+                                name="account_invoice_line_accountable">
                                 <td name="account_invoice_line_name">
-                                    <span t-if="line.name" t-field="line.name" t-options="{'widget': 'text'}"/>
-                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()"/>
+                                    <span t-if="line.name" t-field="line.name"
+                                        t-options="{'widget': 'text'}" />
+                                    <t t-set="lot_values" t-value="o._get_invoiced_lot_values()" />
                                     <t t-if="lot_values">
-                                        <br/>
+                                        <br />
                                         <span>
                                             <i>• Lote</i>
                                         </span>
@@ -249,13 +262,13 @@
                                             <t t-if="line.name == snln_line['product_name']">
                                                 <span>
                                                     <i>
-                                                        <t t-esc="snln_line['lot_name']"/>
+                                                        <t t-esc="snln_line['lot_name']" />
                                                     </i>
                                                 </span>
                                                 <span>(</span>
                                                 <span>
                                                     <i>
-                                                        <t t-esc="snln_line['quantity']"/>
+                                                        <t t-esc="snln_line['quantity']" />
                                                     </i>
                                                 </span>
                                                 <span>)</span>
@@ -264,34 +277,34 @@
                                     </t>
                                 </td>
                                 <td name="td_quantity" class="text-end">
-                                    <span t-field="line.quantity"/>
+                                    <span t-field="line.quantity" />
                                 </td>
                                 <td name="td_price_unit"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
-                                    <span class="text-nowrap" t-field="line.price_unit"/>
+                                    <span class="text-nowrap" t-field="line.price_unit" />
                                 </td>
                                 <td name="td_discount" t-if="display_discount"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
-                                    <span class="text-nowrap" t-field="line.discount"/>
+                                    <span class="text-nowrap" t-field="line.discount" />
                                 </td>
                                 <t t-set="taxes"
-                                   t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_ids])"/>
+                                    t-value="', '.join([(tax.invoice_label or tax.name) for tax in line.tax_ids])" />
                                 <td name="td_taxes"
                                     t-attf-class="{{ 'd-none d-md-table-cell' if report_type == 'html' else '' }} {{ 'text-nowrap' if len(taxes) &lt; 10 else '' }}">
-                                    <span t-out="taxes" id="line_tax_ids"/>
+                                    <span t-out="taxes" id="line_tax_ids" />
                                 </td>
                                 <td name="td_subtotal" class="text-end o_price_total">
-                                    <span class="text-nowrap" t-field="line.price_subtotal"/>
+                                    <span class="text-nowrap" t-field="line.price_subtotal" />
                                 </td>
                             </t>
                             <t t-elif="line.display_type == 'line_section'">
                                 <td colspan="99">
-                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <span t-field="line.name" t-options="{'widget': 'text'}" />
                                 </td>
                             </t>
                             <t t-elif="line.display_type == 'line_note'">
                                 <td colspan="99">
-                                    <span t-field="line.name" t-options="{'widget': 'text'}"/>
+                                    <span t-field="line.name" t-options="{'widget': 'text'}" />
                                 </td>
                             </t>
                         </tr>
