@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    ══════════════════════════════════════════════════════════════════════════
+    NUEVO FORMATO DE IMPRESIÓN: "Presupuesto con Rappel Comercial"
+
+    Este informe es COMPLETAMENTE INDEPENDIENTE del formato estándar de Odoo.
+    NO hereda ni modifica ningún informe existente.
+
+    Aparece como opción adicional en el menú "Imprimir" del presupuesto/pedido.
+    Solo visible para el grupo group_rappel_manager.
+    ══════════════════════════════════════════════════════════════════════════
+    -->
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         1. REGISTRO DEL INFORME
+         Aparece en: Ventas → Presupuesto/Pedido → Imprimir → "Presupuesto con Rappel"
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="action_report_sale_order_with_rappel" model="ir.actions.report">
+        <field name="name">Presupuesto con Rappel Comercial</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">diazcepeda_sale_rappel_management.report_saleorder_with_rappel</field>
+        <field name="report_file">diazcepeda_sale_rappel_management.report_saleorder_with_rappel</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+        <field name="groups_id" eval="[(4, ref('diazcepeda_sale_rappel_management.group_rappel_manager'))]"/>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         2. TEMPLATE CONTENEDOR (punto de entrada del motor de informes)
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <template id="report_saleorder_with_rappel">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="diazcepeda_sale_rappel_management.report_saleorder_with_rappel_document"
+                   t-lang="doc.partner_id.lang"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         3. TEMPLATE DOCUMENTO — Layout completo con columnas de rappel
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <template id="report_saleorder_with_rappel_document">
+        <t t-call="web.external_layout">
+
+            <!-- Aplicar idioma del cliente -->
+            <t t-set="doc" t-value="doc.with_context(lang=doc.partner_id.lang)"/>
+            <t t-set="forced_vat" t-value="doc.fiscal_position_id.foreign_vat"/>
+
+            <!-- ── Dirección del cliente ── -->
+            <t t-set="address">
+                <div t-field="doc.partner_id"
+                     t-options='{"widget": "contact",
+                                 "fields": ["address", "name"],
+                                 "no_marker": True}'/>
+                <p t-if="doc.partner_id.vat">
+                    <t t-if="doc.company_id.account_fiscal_country_id.vat_label"
+                       t-out="doc.company_id.account_fiscal_country_id.vat_label"/>
+                    <t t-else="">NIF/CIF</t>:
+                    <span t-field="doc.partner_id.vat"/>
+                </p>
+            </t>
+
+            <!-- ── Dirección de facturación/envío si difiere ── -->
+            <t t-if="doc.partner_shipping_id == doc.partner_invoice_id
+                         and doc.partner_invoice_id != doc.partner_id
+                         or doc.partner_shipping_id != doc.partner_invoice_id">
+                <t t-set="information_block">
+                    <strong>
+                        <t t-if="doc.partner_shipping_id == doc.partner_invoice_id">
+                            Dir. Facturación y Envío:
+                        </t>
+                        <t t-else="">Dir. Facturación:</t>
+                    </strong>
+                    <div t-field="doc.partner_invoice_id"
+                         t-options='{"widget": "contact",
+                                     "fields": ["address", "name", "phone"],
+                                     "no_marker": True, "phone_icons": True}'/>
+                    <t t-if="doc.partner_shipping_id != doc.partner_invoice_id">
+                        <strong>Dir. Envío:</strong>
+                        <div t-field="doc.partner_shipping_id"
+                             t-options='{"widget": "contact",
+                                         "fields": ["address", "name", "phone"],
+                                         "no_marker": True, "phone_icons": True}'/>
+                    </t>
+                </t>
+            </t>
+
+            <div class="page">
+                <div class="oe_structure"/>
+
+                <!-- ── Título del documento ── -->
+                <h2 class="mt-4">
+                    <span t-if="doc.state in ['draft','sent']">Presupuesto N&#186; </span>
+                    <span t-else="">Pedido N&#186; </span>
+                    <span t-field="doc.name"/>
+                    <span class="badge ms-2"
+                          style="font-size:0.45em; background-color:#003d82;
+                                 color:white; vertical-align:middle; padding:4px 8px;">
+                        CON RAPPEL COMERCIAL
+                    </span>
+                </h2>
+
+                <!-- ── Información del pedido ── -->
+                <div class="row mt-4 mb-2" id="informations">
+                    <div t-if="doc.client_order_ref"
+                         class="col-auto col-3 mw-100 mb-2">
+                        <strong>Su referencia:</strong><br/>
+                        <span class="m-0" t-field="doc.client_order_ref"/>
+                    </div>
+                    <div t-if="doc.date_order" class="col-auto col-3 mw-100 mb-2">
+                        <strong t-if="doc.state in ['draft','sent']">
+                            Fecha presupuesto:
+                        </strong>
+                        <strong t-else="">Fecha pedido:</strong><br/>
+                        <span class="m-0" t-field="doc.date_order"
+                              t-options='{"widget": "date"}'/>
+                    </div>
+                    <div t-if="doc.validity_date and doc.state in ['draft','sent']"
+                         class="col-auto col-3 mw-100 mb-2">
+                        <strong>V&#225;lido hasta:</strong><br/>
+                        <span class="m-0" t-field="doc.validity_date"/>
+                    </div>
+                    <div t-if="doc.user_id" class="col-auto col-3 mw-100 mb-2">
+                        <strong>Comercial:</strong><br/>
+                        <span class="m-0" t-field="doc.user_id"/>
+                    </div>
+                </div>
+
+                <!-- ── Variables globales ── -->
+                <t t-set="lines_to_report" t-value="doc._get_order_lines_to_report()"/>
+                <t t-set="display_discount"
+                   t-value="any(l.discount for l in lines_to_report)"/>
+                <!-- display_rappel: True si alguna línea tiene rappel para mostrar -->
+                <t t-set="display_rappel"
+                   t-value="any(
+                       not l.display_type
+                       and l.product_id.show_rappel_on_quote
+                       and l.rappel_percent
+                       for l in lines_to_report
+                   )"/>
+
+                <div class="oe_structure"/>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     TABLA DE LÍNEAS DEL PEDIDO
+                ════════════════════════════════════════════════════════════ -->
+                <table class="table table-sm o_main_table table-borderless mt-4">
+                    <thead style="display:table-row-group">
+                        <tr>
+                            <th class="text-start" name="th_description">Descripci&#243;n</th>
+                            <th class="text-end"   name="th_quantity">Cantidad</th>
+                            <th class="text-end"   name="th_priceunit">Precio Unit.</th>
+                            <th t-if="display_discount" class="text-end" name="th_discount">
+                                Dto.&#160;%
+                            </th>
+                            <th class="text-end" name="th_taxes">Impuestos</th>
+                            <th class="text-end" name="th_subtotal">Importe</th>
+
+                            <!-- Cabeceras rappel (fondo azul corporativo) -->
+                            <t t-if="display_rappel">
+                                <th class="text-end" name="th_rappel_pct"
+                                    style="background-color:#003d82; color:white;
+                                           border-left:2px solid #001f5e;">
+                                    Rappel&#160;%
+                                </th>
+                                <th class="text-end" name="th_rappel_amount"
+                                    style="background-color:#003d82; color:white;">
+                                    Rappel Est.
+                                </th>
+                                <th class="text-end" name="th_rappel_price"
+                                    style="background-color:#003d82; color:white;">
+                                    P.&#160;Final Est.
+                                </th>
+                            </t>
+                        </tr>
+                    </thead>
+
+                    <tbody class="sale_tbody">
+                        <t t-set="current_subtotal" t-value="0"/>
+
+                        <t t-foreach="lines_to_report" t-as="line">
+                            <t t-set="current_subtotal"
+                               t-value="current_subtotal + line.price_subtotal"/>
+
+                            <tr t-att-class="
+                                'bg-200 fw-bold o_line_section' if line.display_type == 'line_section'
+                                else 'fst-italic o_line_note' if line.display_type == 'line_note'
+                                else ''">
+
+                                <!-- ── Línea de producto normal ── -->
+                                <t t-if="not line.display_type">
+                                    <td name="td_name">
+                                        <span t-field="line.name"/>
+                                    </td>
+                                    <td name="td_quantity" class="text-end">
+                                        <span t-field="line.product_uom_qty"/>
+                                        <span t-field="line.product_uom"/>
+                                        <span t-if="line.product_packaging_id">
+                                            (<span t-field="line.product_packaging_qty"
+                                                   t-options='{"widget": "integer"}'/> <span t-field="line.product_packaging_id"/>)
+                                        </span>
+                                    </td>
+                                    <td name="td_priceunit" class="text-end">
+                                        <span t-field="line.price_unit"/>
+                                    </td>
+                                    <td t-if="display_discount" class="text-end">
+                                        <span t-field="line.discount"/>
+                                    </td>
+                                    <t t-set="taxes"
+                                       t-value="', '.join([
+                                           (tax.invoice_label or tax.name)
+                                           for tax in line.tax_id
+                                       ])"/>
+                                    <td name="td_taxes"
+                                        t-attf-class="text-end #{'text-nowrap' if len(taxes) &lt; 10 else ''}">
+                                        <span t-out="taxes"/>
+                                    </td>
+                                    <td t-if="not line.is_downpayment"
+                                        name="td_subtotal"
+                                        class="text-end o_price_total">
+                                        <span t-field="line.price_subtotal"/>
+                                    </td>
+
+                                    <!-- ── Celdas rappel ── -->
+                                    <t t-if="display_rappel and not line.is_downpayment">
+                                        <!-- % Rappel -->
+                                        <td class="text-end" name="td_rappel_pct"
+                                            style="background-color:#f0f7ff;
+                                                   border-left:2px solid #b8d4f0;">
+                                            <t t-if="line.product_id.show_rappel_on_quote
+                                                     and line.rappel_percent">
+                                                <strong style="color:#003d82;">
+                                                    <span t-esc="'{:.2f}'.format(line.rappel_percent)"/>&#160;%
+                                                </strong>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-muted">&#8212;</span>
+                                            </t>
+                                        </td>
+                                        <!-- Rappel estimado total línea -->
+                                        <td class="text-end" name="td_rappel_amount"
+                                            style="background-color:#f0f7ff;">
+                                            <t t-if="line.product_id.show_rappel_on_quote
+                                                     and line.rappel_percent">
+                                                <span style="color:#c0392b; font-weight:600;"
+                                                      t-field="line.rappel_estimated_amount"
+                                                      t-options='{"widget": "monetary",
+                                                                  "display_currency": doc.currency_id}'/>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-muted">&#8212;</span>
+                                            </t>
+                                        </td>
+                                        <!-- Precio final estimado por unidad -->
+                                        <td class="text-end" name="td_rappel_price"
+                                            style="background-color:#f0f7ff;">
+                                            <t t-if="line.product_id.show_rappel_on_quote
+                                                     and line.rappel_percent">
+                                                <span style="color:#1a7a1a; font-weight:600;"
+                                                      t-field="line.rappel_estimated_unit_price"
+                                                      t-options='{"widget": "monetary",
+                                                                  "display_currency": doc.currency_id}'/>
+                                                <span class="small text-muted"> /ud.</span>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-muted">&#8212;</span>
+                                            </t>
+                                        </td>
+                                    </t>
+                                </t>
+
+                                <!-- ── Línea de sección ── -->
+                                <t t-elif="line.display_type == 'line_section'">
+                                    <td name="td_section_line" colspan="99">
+                                        <span t-field="line.name"/>
+                                    </td>
+                                    <t t-set="current_section" t-value="line"/>
+                                    <t t-set="current_subtotal" t-value="0"/>
+                                </t>
+
+                                <!-- ── Línea de nota ── -->
+                                <t t-elif="line.display_type == 'line_note'">
+                                    <td name="td_note_line" colspan="99">
+                                        <span t-field="line.name"/>
+                                    </td>
+                                </t>
+                            </tr>
+
+                            <!-- Subtotal de sección -->
+                            <t t-if="current_section
+                                     and (line_last
+                                          or lines_to_report[line_index+1].display_type == 'line_section')
+                                     and not line.is_downpayment">
+                                <tr class="is-subtotal text-end">
+                                    <td name="td_section_subtotal" colspan="99">
+                                        <strong class="mr16">Subtotal</strong>
+                                        <span t-out="current_subtotal"
+                                              t-options='{"widget": "monetary",
+                                                          "display_currency": doc.currency_id}'/>
+                                    </td>
+                                </tr>
+                            </t>
+
+                        </t><!-- fin t-foreach -->
+                    </tbody>
+                </table>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     TOTALES DEL PEDIDO (impuestos, total)
+                ════════════════════════════════════════════════════════════ -->
+                <div class="clearfix" name="so_total_summary">
+                    <div class="row" name="total">
+                        <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">
+                            <table class="table table-sm table-borderless">
+                                <t t-set="tax_totals" t-value="doc.tax_totals"/>
+                                <t t-call="sale.document_tax_totals"/>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     CUADRO RESUMEN DE RAPPEL COMERCIAL
+                     Se muestra solo cuando hay líneas con rappel visible.
+                ════════════════════════════════════════════════════════════ -->
+                <t t-if="display_rappel">
+                    <t t-set="rappel_lines" t-value="[
+                        l for l in lines_to_report
+                        if not l.display_type
+                        and l.product_id.show_rappel_on_quote
+                        and l.rappel_percent
+                    ]"/>
+                    <t t-if="rappel_lines">
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <table class="table table-sm table-bordered"
+                                       style="font-size:0.87em; border-color:#b8d4f0;">
+                                    <!-- Cabecera principal -->
+                                    <thead>
+                                        <tr style="background-color:#003d82; color:white;">
+                                            <th colspan="5" class="text-center py-2"
+                                                style="letter-spacing:0.05em;">
+                                                RAPPEL COMERCIAL ESTIMADO
+                                                <span style="font-size:0.78em;
+                                                             font-weight:normal;
+                                                             margin-left:10px;
+                                                             opacity:0.85;">
+                                                    (solo informativo &#8212; no modifica el precio de venta)
+                                                </span>
+                                            </th>
+                                        </tr>
+                                        <tr style="background-color:#1a5ea8; color:white;">
+                                            <th style="width:35%">Producto / Referencia</th>
+                                            <th class="text-end">Precio Neto Unit.</th>
+                                            <th class="text-end">% Rappel</th>
+                                            <th class="text-end">Rappel Estimado</th>
+                                            <th class="text-end">Precio Final Estimado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="rappel_lines" t-as="rline">
+                                            <tr t-att-style="'background-color:#f7fbff;' if rline_even else ''">
+                                                <!-- Producto -->
+                                                <td>
+                                                    <strong>
+                                                        <span t-esc="rline.product_id.display_name"/>
+                                                    </strong>
+                                                    <br/>
+                                                    <small class="text-muted">
+                                                        Cant.: <span t-esc="rline.product_uom_qty"/>
+                                                        <span t-esc="rline.product_uom.name"/>
+                                                    </small>
+                                                </td>
+                                                <!-- Precio neto unitario = precio * (1 - dto/100) -->
+                                                <td class="text-end">
+                                                    <span t-out="rline.price_unit * (1.0 - (rline.discount or 0.0) / 100.0)"
+                                                          t-options='{"widget": "monetary",
+                                                                      "display_currency": doc.currency_id}'/>
+                                                </td>
+                                                <!-- % Rappel -->
+                                                <td class="text-end">
+                                                    <strong style="color:#003d82; font-size:1.1em;">
+                                                        <span t-esc="'{:.2f}'.format(rline.rappel_percent)"/>&#160;%
+                                                    </strong>
+                                                </td>
+                                                <!-- Rappel estimado total de la línea -->
+                                                <td class="text-end">
+                                                    <strong style="color:#c0392b;">
+                                                        <span t-field="rline.rappel_estimated_amount"
+                                                              t-options='{"widget": "monetary",
+                                                                          "display_currency": doc.currency_id}'/>
+                                                    </strong>
+                                                </td>
+                                                <!-- Precio final estimado por unidad -->
+                                                <td class="text-end">
+                                                    <strong style="color:#1a7a1a;">
+                                                        <span t-field="rline.rappel_estimated_unit_price"
+                                                              t-options='{"widget": "monetary",
+                                                                          "display_currency": doc.currency_id}'/>
+                                                    </strong>
+                                                    <small class="text-muted d-block">
+                                                        por unidad
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                    <!-- Fila total -->
+                                    <tfoot>
+                                        <tr style="background-color:#e8f0fe;
+                                                   border-top:2px solid #003d82;">
+                                            <td colspan="3">
+                                                <strong>TOTAL RAPPEL ESTIMADO DEL PEDIDO</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong style="color:#c0392b; font-size:1.1em;">
+                                                    <span t-out="sum(l.rappel_estimated_amount for l in rappel_lines)"
+                                                          t-options='{"widget": "monetary",
+                                                                      "display_currency": doc.currency_id}'/>
+                                                </strong>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                <!-- Nota legal -->
+                                <div class="alert alert-light mt-2 py-1 px-2"
+                                     style="font-size:0.75em; border-left:3px solid #003d82;
+                                            border-radius:0; background-color:#f8f9fa;">
+                                    <strong>Aviso legal:</strong>
+                                    El rappel comercial mostrado es una estimaci&#243;n basada en este pedido.
+                                    El rappel real se calcular&#225; al cierre del per&#237;odo pactado sobre el
+                                    volumen total de compras, y se formalizar&#225; mediante abono independiente.
+                                    El precio de venta indicado en este documento no se modifica.
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </t>
+
+                <div class="oe_structure"/>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     FIRMA DIGITAL (si existe)
+                ════════════════════════════════════════════════════════════ -->
+                <div t-if="not doc.signature" class="oe_structure"/>
+                <div t-else="" class="mt-4 ml64 mr4" name="signature">
+                    <div class="offset-8">
+                        <strong>Firma</strong>
+                    </div>
+                    <div class="offset-8">
+                        <img t-att-src="image_data_uri(doc.signature)"
+                             style="max-height:4cm; max-width:8cm;"/>
+                    </div>
+                    <div class="offset-8 text-center">
+                        <span t-field="doc.signed_by"/>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     NOTAS Y CONDICIONES DE PAGO
+                ════════════════════════════════════════════════════════════ -->
+                <div>
+                    <span t-field="doc.note"
+                          t-attf-style="#{'text-align:justify;text-justify:inter-word;'
+                                          if doc.company_id.terms_type != 'html' else ''}"
+                          name="order_note"/>
+                    <p t-if="not is_html_empty(doc.payment_term_id.note)">
+                        <span t-field="doc.payment_term_id.note"/>
+                    </p>
+                    <div class="oe_structure"/>
+                    <p t-if="doc.fiscal_position_id
+                              and not is_html_empty(doc.fiscal_position_id.sudo().note)"
+                       id="fiscal_position_remark">
+                        <strong>Nota posici&#243;n fiscal:</strong>
+                        <span t-field="doc.fiscal_position_id.sudo().note"/>
+                    </p>
+                </div>
+
+                <div class="oe_structure"/>
+            </div>
+        </t>
+    </template>
+
+</odoo>
+

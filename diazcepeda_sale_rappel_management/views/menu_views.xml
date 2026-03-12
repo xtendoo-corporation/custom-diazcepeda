@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         MENÚ: Ventas → Rappels
+    ====================================================================== -->
+
+    <!-- Menú raíz: Rappels (aparece bajo Ventas) -->
+    <menuitem id="menu_rappel_root"
+              name="Rappels"
+              parent="sale.sale_menu_root"
+              sequence="30"
+              groups="diazcepeda_sale_rappel_management.group_rappel_manager"/>
+
+    <!-- Submenú: Reglas de Rappel -->
+    <menuitem id="menu_rappel_rules"
+              name="Reglas de Rappel"
+              parent="menu_rappel_root"
+              action="diazcepeda_sale_rappel_management.action_rappel_rule"
+              sequence="10"
+              groups="diazcepeda_sale_rappel_management.group_rappel_manager"/>
+
+    <!-- Submenú: Liquidaciones de Rappel -->
+    <menuitem id="menu_rappel_settlements"
+              name="Liquidaciones de Rappel"
+              parent="menu_rappel_root"
+              action="diazcepeda_sale_rappel_management.action_rappel_settlement"
+              sequence="20"
+              groups="diazcepeda_sale_rappel_management.group_rappel_manager"/>
+
+    <!-- Submenú: Nueva Liquidación (asistente) -->
+    <menuitem id="menu_rappel_settlement_wizard"
+              name="Nueva Liquidación (Asistente)"
+              parent="menu_rappel_root"
+              action="diazcepeda_sale_rappel_management.action_rappel_settlement_wizard"
+              sequence="30"
+              groups="diazcepeda_sale_rappel_management.group_rappel_manager"/>
+</odoo>
+

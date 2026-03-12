@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Grupo de gestores de rappel -->
+        <record id="group_rappel_manager" model="res.groups">
+            <field name="name">Gestor de Rappels</field>
+            <field name="category_id" ref="base.module_category_sales_sales"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Acceso completo a reglas y liquidaciones de rappel.</field>
+        </record>
+    </data>
+</odoo>
+

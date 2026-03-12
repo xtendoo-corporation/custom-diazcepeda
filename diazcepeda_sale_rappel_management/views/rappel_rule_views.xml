@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         RAPPEL RULE – Tree view
+    ====================================================================== -->
+    <record id="view_rappel_rule_tree" model="ir.ui.view">
+        <field name="name">rappel.rule.tree</field>
+        <field name="model">rappel.rule</field>
+        <field name="arch" type="xml">
+            <tree string="Reglas de Rappel" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="product_category_id"/>
+                <field name="rappel_percent" string="Rappel (%)"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL RULE – Form view
+    ====================================================================== -->
+    <record id="view_rappel_rule_form" model="ir.ui.view">
+        <field name="name">rappel.rule.form</field>
+        <field name="model">rappel.rule</field>
+        <field name="arch" type="xml">
+            <form string="Regla de Rappel">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object"
+                                class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button"
+                                   options='{"terminology": "archive"}'/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Nombre de la regla"/></h1>
+                    </div>
+                    <group>
+                        <group string="Ámbito de Aplicación">
+                            <field name="partner_id"
+                                   placeholder="Vacío = todos los clientes"/>
+                            <field name="product_id"/>
+                            <field name="product_category_id"/>
+                        </group>
+                        <group string="Condiciones">
+                            <field name="rappel_percent" widget="percentage"/>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="sequence"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert"
+                         style="margin-top:8px;">
+                        <strong>Prioridad de aplicación:</strong>
+                        1) Cliente + Producto &#160;|&#160;
+                        2) Cliente + Categoría &#160;|&#160;
+                        3) Todos + Producto &#160;|&#160;
+                        4) Todos + Categoría
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL RULE – Search view
+    ====================================================================== -->
+    <record id="view_rappel_rule_search" model="ir.ui.view">
+        <field name="name">rappel.rule.search</field>
+        <field name="model">rappel.rule</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Reglas de Rappel">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="product_category_id"/>
+                <filter string="Activos" name="active" domain="[('active','=',True)]"/>
+                <filter string="Archivados" name="inactive" domain="[('active','=',False)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Cliente" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Categoría" name="group_category"
+                            context="{'group_by': 'product_category_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL RULE – Action
+    ====================================================================== -->
+    <record id="action_rappel_rule" model="ir.actions.act_window">
+        <field name="name">Reglas de Rappel</field>
+        <field name="res_model">rappel.rule</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_rappel_rule_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Cree su primera regla de rappel
+            </p>
+            <p>
+                Las reglas de rappel determinan el porcentaje de descuento aplicable
+                por cliente, producto o categoría de producto.
+            </p>
+        </field>
+    </record>
+</odoo>
+

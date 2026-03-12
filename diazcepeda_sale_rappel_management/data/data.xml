@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Secuencia para liquidaciones de rappel -->
+    <record id="seq_rappel_settlement" model="ir.sequence">
+        <field name="name">Liquidación de Rappel</field>
+        <field name="code">rappel.settlement</field>
+        <field name="prefix">RAP/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>
+

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         SALE ORDER LINE – Columnas de rappel en la línea del pedido
+         (solo informativo, no modifica precio)
+    ====================================================================== -->
+    <record id="view_sale_order_form_rappel" model="ir.ui.view">
+        <field name="name">sale.order.form.rappel</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Añadir columnas de rappel en la pestaña de líneas del pedido -->
+            <xpath expr="//field[@name='order_line']/tree/field[@name='price_subtotal']"
+                   position="after">
+                <field name="rappel_rule_id" optional="hide" readonly="1"/>
+                <field name="rappel_percent" optional="show" string="Rappel %"
+                       invisible="not product_id or not product_id.is_rappel_applicable"/>
+                <field name="rappel_estimated_amount" optional="show"
+                       string="Rappel Est."
+                       invisible="not product_id or not product_id.is_rappel_applicable"/>
+                <field name="rappel_estimated_unit_price" optional="show"
+                       string="P. Final Est."
+                       invisible="not product_id or not product_id.is_rappel_applicable"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

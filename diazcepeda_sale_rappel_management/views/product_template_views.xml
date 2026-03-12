@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         PRODUCT TEMPLATE – Pestaña de Rappel en formulario de producto
+    ====================================================================== -->
+    <record id="view_product_template_form_rappel" model="ir.ui.view">
+        <field name="name">product.template.form.rappel</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="Rappel Comercial" name="rappel_tab">
+                    <group>
+                        <group string="Configuración de Rappel">
+                            <field name="is_rappel_applicable"/>
+                            <field name="show_rappel_on_quote"
+                                   invisible="not is_rappel_applicable"/>
+                            <field name="default_rappel_percent"
+                                   widget="percentage"
+                                   invisible="not is_rappel_applicable"/>
+                            <field name="rappel_category_id"
+                                   invisible="not is_rappel_applicable"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="is_rappel_applicable">
+                        <i class="fa fa-info-circle"/> Active "Aplica Rappel" para configurar
+                        los parámetros de rappel de este producto.
+                    </div>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>
+

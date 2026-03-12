@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT – Tree view
+    ====================================================================== -->
+    <record id="view_rappel_settlement_tree" model="ir.ui.view">
+        <field name="name">rappel.settlement.tree</field>
+        <field name="model">rappel.settlement</field>
+        <field name="arch" type="xml">
+            <tree string="Liquidaciones de Rappel"
+                  decoration-success="state == 'invoiced'"
+                  decoration-info="state == 'calculated'"
+                  decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="total_base_amount" sum="Total Base"/>
+                <field name="total_rappel_amount" sum="Total Rappel"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'invoiced'"
+                       decoration-info="state == 'calculated'"
+                       decoration-warning="state == 'draft'"/>
+                <field name="invoice_id" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT LINE – Tree (inline)
+    ====================================================================== -->
+    <record id="view_rappel_settlement_line_tree" model="ir.ui.view">
+        <field name="name">rappel.settlement.line.tree</field>
+        <field name="model">rappel.settlement.line</field>
+        <field name="arch" type="xml">
+            <tree string="Líneas de Liquidación" editable="bottom">
+                <field name="product_id"/>
+                <field name="quantity"/>
+                <field name="base_amount" sum="Base Total"/>
+                <field name="rappel_percent" string="Rappel (%)"/>
+                <field name="rappel_amount" sum="Rappel Total"/>
+                <field name="currency_id" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT – Form view
+    ====================================================================== -->
+    <record id="view_rappel_settlement_form" model="ir.ui.view">
+        <field name="name">rappel.settlement.form</field>
+        <field name="model">rappel.settlement</field>
+        <field name="arch" type="xml">
+            <form string="Liquidación de Rappel">
+                <header>
+                    <!-- Botón: Generar Abono -->
+                    <button name="action_generate_credit_note"
+                            string="Generar Abono"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'calculated'"
+                            confirm="¿Desea generar el abono para esta liquidación de rappel?"/>
+                    <!-- Botón: Ver Abono -->
+                    <button name="action_view_invoice"
+                            string="Ver Abono"
+                            type="object"
+                            invisible="not invoice_id"/>
+                    <!-- Botón: Reiniciar a Borrador -->
+                    <button name="action_reset_to_draft"
+                            string="Reiniciar a Borrador"
+                            type="object"
+                            invisible="state not in ('calculated',)"
+                            confirm="Se eliminarán todas las líneas de liquidación. ¿Continuar?"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,calculated,invoiced"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Información General">
+                            <field name="partner_id"
+                                   readonly="state != 'draft'"/>
+                            <field name="company_id"
+                                   groups="base.group_multi_company"
+                                   readonly="state != 'draft'"/>
+                            <field name="currency_id"
+                                   readonly="state != 'draft'"/>
+                        </group>
+                        <group string="Período">
+                            <field name="date_start" readonly="state != 'draft'"/>
+                            <field name="date_end" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+
+                    <!-- Líneas de liquidación -->
+                    <notebook>
+                        <page string="Líneas de Liquidación" name="lines">
+                            <field name="settlement_line_ids"
+                                   widget="one2many_list"
+                                   readonly="state != 'calculated'"
+                                   context="{'default_settlement_id': active_id}">
+                                <tree string="Líneas" editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="base_amount" sum="Base Total"/>
+                                    <field name="rappel_percent" string="Rappel (%)"/>
+                                    <field name="rappel_amount" sum="Rappel Total"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+
+                    <!-- Totales -->
+                    <group class="oe_subtotal_footer">
+                        <field name="total_base_amount" string="Base Total"/>
+                        <field name="total_rappel_amount" string="Rappel Total"
+                               class="oe_subtotal_footer_separator"/>
+                    </group>
+
+                    <!-- Abono vinculado -->
+                    <group invisible="not invoice_id">
+                        <field name="invoice_id" readonly="1" string="Abono Generado"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT – Search view
+    ====================================================================== -->
+    <record id="view_rappel_settlement_search" model="ir.ui.view">
+        <field name="name">rappel.settlement.search</field>
+        <field name="model">rappel.settlement</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Liquidaciones">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <filter string="Borrador" name="draft"
+                        domain="[('state','=','draft')]"/>
+                <filter string="Calculado" name="calculated"
+                        domain="[('state','=','calculated')]"/>
+                <filter string="Facturado" name="invoiced"
+                        domain="[('state','=','invoiced')]"/>
+                <separator/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Cliente" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Estado" name="group_state"
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Año" name="group_year"
+                            context="{'group_by': 'date_start:year'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT – Action
+    ====================================================================== -->
+    <record id="action_rappel_settlement" model="ir.actions.act_window">
+        <field name="name">Liquidaciones de Rappel</field>
+        <field name="res_model">rappel.settlement</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_rappel_settlement_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay liquidaciones de rappel
+            </p>
+            <p>
+                Use el asistente de liquidación para calcular el rappel
+                de un cliente en un período determinado.
+            </p>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         RAPPEL SETTLEMENT WIZARD – Action (para menú)
+    ====================================================================== -->
+    <record id="action_rappel_settlement_wizard" model="ir.actions.act_window">
+        <field name="name">Nueva Liquidación de Rappel</field>
+        <field name="res_model">rappel.settlement.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
+

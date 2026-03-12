@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_rappel_rule_manager,rappel.rule (Manager),model_rappel_rule,diazcepeda_sale_rappel_management.group_rappel_manager,1,1,1,1
+access_rappel_rule_user,rappel.rule (User),model_rappel_rule,base.group_user,1,0,0,0
+access_rappel_settlement_manager,rappel.settlement (Manager),model_rappel_settlement,diazcepeda_sale_rappel_management.group_rappel_manager,1,1,1,1
+access_rappel_settlement_user,rappel.settlement (User),model_rappel_settlement,base.group_user,1,0,0,0
+access_rappel_settlement_line_manager,rappel.settlement.line (Manager),model_rappel_settlement_line,diazcepeda_sale_rappel_management.group_rappel_manager,1,1,1,1
+access_rappel_settlement_line_user,rappel.settlement.line (User),model_rappel_settlement_line,base.group_user,1,0,0,0
+access_rappel_settlement_wizard,rappel.settlement.wizard,model_rappel_settlement_wizard,diazcepeda_sale_rappel_management.group_rappel_manager,1,1,1,1
+
