@@ -30,6 +30,16 @@
         <xpath expr="//th[@name='th_priceunit']" position="replace">
             <th name="th_priceunit" class="text-end">Precio</th>
         </xpath>
+        <xpath expr="//th[@name='th_priceunit']" position="after">
+            <th name="th_green_point" class="text-end" t-if="any(l.green_point_applicable for l in doc.order_line)">
+                <span>P. V.</span>
+            </th>
+        </xpath>
+        <xpath expr="//td[@name='td_priceunit']" position="after">
+            <td name="td_green_point" class="text-end" t-if="any(k.green_point_applicable for k in doc.order_line)">
+                <span t-if="line.green_point_applicable" t-field="line.green_point_amount_line"/>
+            </td>
+        </xpath>
         <xpath expr="//td[@name='td_quantity']" position="replace">
             <td name="td_quantity" class="text-end">
                 <span t-field="line.product_uom_qty">3</span>

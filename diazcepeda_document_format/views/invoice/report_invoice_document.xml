@@ -69,6 +69,12 @@
             </th>
         </xpath>
 
+        <xpath expr="//th[@name='th_priceunit']" position="after">
+            <th name="th_green_point" class="text-end" t-if="any(l.green_point_applicable for l in o.invoice_line_ids)">
+                <span>P. V.</span>
+            </th>
+        </xpath>
+
         <xpath expr="//td[@name='td_quantity']" position="replace">
             <td name="td_quantity" class="text-end">
                 <span t-field="line.quantity">3</span>
@@ -211,6 +217,9 @@
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
                                     <span class="text-nowrap" t-field="line.price_unit" />
                                 </td>
+                                <td name="td_green_point" class="text-end" t-if="any(k.green_point_applicable for k in o.invoice_line_ids)">
+                                    <span t-if="line.green_point_applicable" t-field="line.green_point_amount_line"/>
+                                </td>
                                 <td name="td_discount" t-if="display_discount"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
                                     <span class="text-nowrap" t-field="line.discount" />
@@ -282,6 +291,9 @@
                                 <td name="td_price_unit"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">
                                     <span class="text-nowrap" t-field="line.price_unit" />
+                                </td>
+                                <td name="td_green_point" class="text-end" t-if="any(k.green_point_applicable for k in o.invoice_line_ids)">
+                                    <span t-if="line.green_point_applicable" t-field="line.green_point_amount_line"/>
                                 </td>
                                 <td name="td_discount" t-if="display_discount"
                                     t-attf-class="text-end {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}">

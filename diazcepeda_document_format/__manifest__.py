@@ -12,7 +12,8 @@
         "account",
         "web",
         "sale",
-        "stock"
+        "stock",
+        "xtendoo_account_green_point",
     ],
     "data": [
         "views/sale/report_saleorder_document.xml",

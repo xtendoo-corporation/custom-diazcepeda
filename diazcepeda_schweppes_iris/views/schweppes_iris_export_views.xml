@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_schweppes_iris_export_form" model="ir.ui.view">
+        <field name="name">schweppes.iris.export.form</field>
+        <field name="model">schweppes.iris.export</field>
+        <field name="arch" type="xml">
+            <form string="Exportar Schweppes IRIS">
+                <header>
+                    <button name="action_generate_file" string="Generar Fichero" type="object" class="oe_highlight" invisible="state == 'done'"/>
+                    <button name="action_generate_file" string="Regenerar Fichero" type="object" invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date_from" readonly="state == 'done'"/>
+                            <field name="date_to" readonly="state == 'done'"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="file_name" invisible="not file_name"/>
+                            <field name="file_data" filename="file_name" invisible="not file_data"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_schweppes_iris_export_tree" model="ir.ui.view">
+        <field name="name">schweppes.iris.export.tree</field>
+        <field name="model">schweppes.iris.export</field>
+        <field name="arch" type="xml">
+            <tree string="Exportaciones Schweppes IRIS">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="state"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_schweppes_iris_export" model="ir.actions.act_window">
+        <field name="name">Exportación Schweppes IRIS</field>
+        <field name="res_model">schweppes.iris.export</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_schweppes_iris_root" name="Schweppes IRIS" parent="sale.menu_sale_report" sequence="100"/>
+    <menuitem id="menu_schweppes_iris_export" name="Generar Exportación" parent="menu_schweppes_iris_root" action="action_schweppes_iris_export" sequence="10"/>
+
+</odoo>

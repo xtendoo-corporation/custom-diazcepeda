@@ -1,0 +1,20 @@
+{
+    'name': 'Schweppes IRIS Export',
+    'version': '17.0.1.0.0',
+    'category': 'Sales/Sales',
+    'summary': 'Exportación del fichero IRIS para Schweppes',
+    'description': 'Módulo de generación de fichero .txt posicional',
+    'author': 'Guillermo Barcena Lopez',
+    'website': 'https://xtendoo.es',
+    'depends': ['base', 'sale', 'account', 'stock'],
+    'data': [
+        'security/ir.model.access.csv',
+        'data/ir_sequence_data.xml',
+        'views/res_config_settings_views.xml',
+        'views/mapping_views.xml',
+        'views/schweppes_iris_export_views.xml',
+    ],
+    'installable': True,
+    'application': False,
+    'license': 'AGPL-3',
+}

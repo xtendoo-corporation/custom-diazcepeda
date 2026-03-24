@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_schweppes_iris_export" model="ir.sequence">
+            <field name="name">Schweppes IRIS Export</field>
+            <field name="code">schweppes.iris.export</field>
+            <field name="prefix">SCHW/IRIS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>
