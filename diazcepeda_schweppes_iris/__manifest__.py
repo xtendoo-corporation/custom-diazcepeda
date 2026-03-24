@@ -6,7 +6,7 @@
     'description': 'Módulo de generación de fichero .txt posicional',
     'author': 'Guillermo Barcena Lopez',
     'website': 'https://xtendoo.es',
-    'depends': ['base', 'sale', 'account', 'stock'],
+    'depends': ['base', 'sale', 'account', 'stock', 'mail'],
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',

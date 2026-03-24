@@ -6,6 +6,7 @@ from ..tools import iris_formatter
 
 class SchweppesIrisExport(models.Model):
     _name = 'schweppes.iris.export'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Schweppes IRIS Export'
     _order = 'create_date desc'
 
@@ -20,6 +21,14 @@ class SchweppesIrisExport(models.Model):
     
     file_data = fields.Binary(string='Archivo TXT', readonly=True)
     file_name = fields.Char(string='Nombre del Archivo', readonly=True)
+
+    # Summary fields for UX
+    invoice_count = fields.Integer(string='Nº Facturas', readonly=True, tracking=True)
+    partner_count = fields.Integer(string='Nº Clientes', readonly=True, tracking=True)
+    line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, tracking=True)
+    
+    invoice_ids = fields.Many2many('account.move', string='Facturas Incluidas', readonly=True)
+    partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
 
     @api.model
     def create(self, vals):
@@ -144,11 +153,40 @@ class SchweppesIrisExport(models.Model):
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
-            'state': 'done'
+            'state': 'done',
+            'invoice_count': len(invoices),
+            'partner_count': len(partners_to_export),
+            'line_count': sum([len(i.invoice_line_ids.filtered(lambda l: l.product_id.schweppes_product_code)) for i in invoices]),
+            'invoice_ids': [(6, 0, invoices.ids)],
+            'partner_ids': [(6, 0, partners_to_export.ids)],
         })
+        
+        self.message_post(body=_("Fichero IRIS generado con %s facturas y %s clientes.") % (len(invoices), len(partners_to_export)))
 
         return {
             'type': 'ir.actions.act_url',
             'url': f'/web/content/?model=schweppes.iris.export&id={self.id}&field=file_data&filename={file_name}&download=true',
             'target': 'self',
+        }
+
+    def action_view_invoices(self):
+        self.ensure_one()
+        return {
+            'name': _('Facturas Schweppes'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', self.invoice_ids.ids)],
+            'context': {'create': False, 'delete': False},
+        }
+
+    def action_view_partners(self):
+        self.ensure_one()
+        return {
+            'name': _('Clientes Schweppes'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.partner',
+            'view_mode': 'kanban,tree,form',
+            'domain': [('id', 'in', self.partner_ids.ids)],
+            'context': {'create': False, 'delete': False},
         }
