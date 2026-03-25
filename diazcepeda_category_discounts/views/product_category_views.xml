@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_category_form_view_inherit_category_discounts" model="ir.ui.view">
+        <field name="name">product.category.form.inherit.category.discounts</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='first']" position="after">
+                <group name="category_discounts" string="Descuentos">
+                    <field name="show_discount_in_line"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
