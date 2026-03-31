@@ -12,6 +12,10 @@ class AccountMove(models.Model):
         return self.invoice_line_ids.filtered(lambda line: line.product_id.name == 'Gasto de gestión').exists()
 
     def _get_footer_data(self):
-        param_obj = self.env['ir.config_parameter'].sudo()
-        footer_data = param_obj.get_param('footer_data', default='')
-        return footer_data.replace('\n', '<br/>')
+        # Buscar la compañía cuyo nombre es 'Fernando Díaz Cepeda'
+        fdc_company_id = self.env['res.company'].search([('name', '=', 'Fernando Díaz Cepeda')], limit=1)
+        if self.company_id != fdc_company_id:
+            param_obj = self.env['ir.config_parameter'].sudo()
+            footer_data = param_obj.get_param('footer_data', default='')
+            return footer_data.replace('\n', '<br/>')
+        return ''
