@@ -18,7 +18,7 @@ class SchweppesIrisExport(models.Model):
         ('draft', 'Borrador'),
         ('done', 'Generado')
     ], string='Estado', default='draft')
-    
+
     file_data = fields.Binary(string='Archivo TXT', readonly=True)
     file_name = fields.Char(string='Nombre del Archivo', readonly=True)
 
@@ -26,7 +26,7 @@ class SchweppesIrisExport(models.Model):
     invoice_count = fields.Integer(string='Nº Facturas', readonly=True, tracking=True)
     partner_count = fields.Integer(string='Nº Clientes', readonly=True, tracking=True)
     line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, tracking=True)
-    
+
     invoice_ids = fields.Many2many('account.move', string='Facturas Incluidas', readonly=True)
     partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
 
@@ -38,7 +38,7 @@ class SchweppesIrisExport(models.Model):
 
     def action_generate_file(self):
         self.ensure_one()
-        
+
         # 1. Gather Invoices
         domain = [
             ('move_type', '=', 'out_invoice'),
@@ -49,7 +49,7 @@ class SchweppesIrisExport(models.Model):
             ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
         ]
         invoices = self.env['account.move'].search(domain)
-        
+
         if not invoices:
             raise UserError(_("No se han encontrado facturas publicadas en este rango de fechas."))
 
@@ -57,30 +57,22 @@ class SchweppesIrisExport(models.Model):
         lines = []
         orders_count = len(invoices)
         partners_to_export = self.env['res.partner']
-        
+
         # CT (Header)
         now = datetime.now()
         date_tx = now.strftime('%Y%m%d')
-        # Get sequence for the day or simple incremental? The requirement says NN (2 digits)
-        # We can use a simple day-based sequence or just 01 for now as a placeholder
-        nn = "01" 
+        nn = "01"
         dist_code = self.company_id.schweppes_distributor_code or "1000026677"
         lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
 
         for move in invoices:
             partners_to_export |= move.partner_id
-            
-            # DICP (Order Header)
-            # Route and codes from partner extension
             route = move.partner_id.schweppes_route or "56"
             cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
             date_inv = move.invoice_date.strftime('%Y%m%d')
-            payment_type = 'CO' # Simplified: mapping needed from account.payment.term?
-            # In specification: CO (contado) o CR (crédito)
-            # Defaulting to CO if not specified
-            
+            payment_type = 'CO'
             lines.append(iris_formatter.format_dicp(
-                move.name[-10:], # Last 10 chars of invoice name
+                move.name[-10:],
                 route,
                 cust_code,
                 date_inv,
@@ -88,34 +80,28 @@ class SchweppesIrisExport(models.Model):
                 payment_type,
                 move.ref or ""
             ))
-            
             for line in move.invoice_line_ids:
                 if not line.product_id or not line.product_id.schweppes_product_code:
                     continue
-                
-                # DIDP (Product Detail)
                 prod_code = line.product_id.schweppes_product_code
                 lines.append(iris_formatter.format_didp(
                     move.name[-10:],
                     prod_code,
                     line.quantity,
-                    0, # Return expected
+                    0,
                     line.quantity,
-                    0, # Returned
+                    0,
                     line.price_unit
                 ))
-                
-                # DIDD (Discount Detail) - If any
                 if line.discount:
                     disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
                     lines.append(iris_formatter.format_didd(
                         move.name[-10:],
                         prod_code,
-                        'ES', # ES for promotional/special
+                        'ES',
                         disc_amount
                     ))
 
-        # DIMC (Master Clients)
         for partner in partners_to_export:
             lines.append(iris_formatter.format_dimc(
                 partner.schweppes_customer_code or partner.ref or str(partner.id),
@@ -125,31 +111,27 @@ class SchweppesIrisExport(models.Model):
                 partner.street or "",
                 partner.vat or "",
                 partner.schweppes_delivery_type or "D",
-                "01", # Establishment type placeholder
-                "CO", # Payment type placeholder
-                "AC", # Status Active
-                "", "", "S", "SSSSSSS", # Defaults
-                "", "", "", "N", # Defaults
+                "01",
+                "CO",
+                "AC",
+                "", "", "S", "SSSSSSS",
+                "", "", "", "N",
                 partner.email or "",
                 partner.city or "",
                 partner.state_id.name if partner.state_id else "",
                 partner.zip or "",
                 partner.phone or "",
-                "", # Fax
+                "",
                 partner.schweppes_customer_code or "",
-                "" # Sequence
+                ""
             ))
 
-        # FT (Footer)
-        records_count = len(lines) + 1 # +1 for FT itself
+        records_count = len(lines) + 1
         lines.append(iris_formatter.format_ft(records_count, orders_count))
 
-        # Final String
         content = "\r\n".join(lines) + "\r\n"
-        
-        # File Name: DDMMYYYYSCHW_IRIS_VENTAS.txt
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
-        
+
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
@@ -160,13 +142,40 @@ class SchweppesIrisExport(models.Model):
             'invoice_ids': [(6, 0, invoices.ids)],
             'partner_ids': [(6, 0, partners_to_export.ids)],
         })
-        
-        self.message_post(body=_("Fichero IRIS generado con %s facturas y %s clientes.") % (len(invoices), len(partners_to_export)))
 
+        # Eliminar adjuntos anteriores vinculados a este registro
+        old_attachments = self.env['ir.attachment'].search([
+            ('res_model', '=', self._name),
+            ('res_id', '=', self.id),
+            ('mimetype', '=', 'text/plain'),
+        ])
+        if old_attachments:
+            old_attachments.unlink()
+
+        # Crear el nuevo adjunto
+        attachment = self.env['ir.attachment'].create({
+            'name': file_name,
+            'datas': base64.b64encode(content.encode('utf-8')),
+            'res_model': self._name,
+            'res_id': self.id,
+            'type': 'binary',
+            'mimetype': 'text/plain',
+            'public': True,
+        })
+
+        usuario = self.env.user.name
+        self.message_post(
+            body=_("El usuario %s, ha generado/regenerado el fichero IRIS (%s facturas, %s clientes).") % (usuario, len(invoices), len(partners_to_export)),
+            attachment_ids=[attachment.id]
+        )
+
+        # Recargar la vista formulario para reflejar cambios
         return {
-            'type': 'ir.actions.act_url',
-            'url': f'/web/content/?model=schweppes.iris.export&id={self.id}&field=file_data&filename={file_name}&download=true',
-            'target': 'self',
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
         }
 
     def action_view_invoices(self):
