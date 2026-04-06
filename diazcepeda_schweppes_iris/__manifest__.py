@@ -1,6 +1,6 @@
 {
     'name': 'Schweppes IRIS Export',
-    'version': '17.0.1.0.0',
+    'version': '18.0.1.0.0',
     'category': 'Sales/Sales',
     'summary': 'Exportación del fichero IRIS para Schweppes',
     'description': 'Módulo de generación de fichero .txt posicional',

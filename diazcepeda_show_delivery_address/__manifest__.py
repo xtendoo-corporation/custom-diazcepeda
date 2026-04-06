@@ -1,7 +1,7 @@
 {
     "name": "Diaz Cepeda Show Delivery Address",
     "summary": """Diaz Cepeda Show Delivery Address""",
-    "version": "17.0.1.0.0",
+    "version": "18.0.1.0.0",
     "description": """Diaz Cepeda Show Delivery Address""",
     "company": "Xtendoo",
     "author": "Manuel Calero Solís",

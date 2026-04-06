@@ -1,7 +1,7 @@
 {
     "name": "Diaz Cepeda Document Format",
     "summary": """Diaz Cepeda Document Format""",
-    "version": "17.0.1.0.0",
+    "version": "18.0.1.0.0",
     "description": """Diaz Cepeda Document Format""",
     "company": "Xtendoo",
     "author": "Daniel Dominguez",
