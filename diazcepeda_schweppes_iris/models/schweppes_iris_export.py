@@ -30,11 +30,13 @@ class SchweppesIrisExport(models.Model):
     invoice_ids = fields.Many2many('account.move', string='Facturas Incluidas', readonly=True)
     partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
 
-    @api.model
-    def create(self, vals):
-        if vals.get('name', _('Nuevo')) == _('Nuevo'):
-            vals['name'] = self.env['ir.sequence'].next_by_code('schweppes.iris.export') or _('Nuevo')
-        return super(SchweppesIrisExport, self).create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Odoo 18: create recibe una lista de dicts
+        for vals in vals_list:
+            if vals.get('name', _('Nuevo')) == _('Nuevo'):
+                vals['name'] = self.env['ir.sequence'].next_by_code('schweppes.iris.export') or _('Nuevo')
+        return super().create(vals_list)
 
     def action_generate_file(self):
         self.ensure_one()
@@ -184,7 +186,7 @@ class SchweppesIrisExport(models.Model):
             'name': _('Facturas Schweppes'),
             'type': 'ir.actions.act_window',
             'res_model': 'account.move',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',  # Odoo 18: 'tree' renombrado a 'list'
             'domain': [('id', 'in', self.invoice_ids.ids)],
             'context': {'create': False, 'delete': False},
         }
@@ -195,7 +197,7 @@ class SchweppesIrisExport(models.Model):
             'name': _('Clientes Schweppes'),
             'type': 'ir.actions.act_window',
             'res_model': 'res.partner',
-            'view_mode': 'kanban,tree,form',
+            'view_mode': 'kanban,list,form',  # Odoo 18: 'tree' renombrado a 'list'
             'domain': [('id', 'in', self.partner_ids.ids)],
             'context': {'create': False, 'delete': False},
         }

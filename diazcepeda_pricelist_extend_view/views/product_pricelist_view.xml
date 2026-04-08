@@ -6,19 +6,21 @@
         <field name="model">product.pricelist</field>
         <field name="inherit_id" ref="product.product_pricelist_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//list[@string='Pricelist Rules']/field[@name='base']" position="replace">
+            <!-- En Odoo 18 no se puede usar @string como selector XPath.
+                 Se usa //field[@name='item_ids']//field[@name='X'] como selector. -->
+            <xpath expr="//field[@name='item_ids']//field[@name='base']" position="replace">
                 <field name="base" invisible="not compute_price == 'formula'" optional="show"/>
             </xpath>
-            <xpath expr="//list[@string='Pricelist Rules']/field[@name='applied_on']" position="replace">
+            <xpath expr="//field[@name='item_ids']//field[@name='applied_on']" position="replace">
                 <field name="applied_on" optional="show"/>
             </xpath>
-            <xpath expr="//list[@string='Pricelist Rules']/field[@name='compute_price']" position="replace">
+            <xpath expr="//field[@name='item_ids']//field[@name='compute_price']" position="replace">
                 <field name="compute_price" string="Tipo Cálculo" optional="show"/>
             </xpath>
-            <xpath expr="//list[@string='Pricelist Rules']/field[@name='price_discount']" position="replace">
+            <xpath expr="//field[@name='item_ids']//field[@name='price_discount']" position="replace">
                 <field name="price_discount" invisible="not compute_price == 'formula'" string="Desc %" optional="show"/>
             </xpath>
-            <xpath expr="//list[@string='Pricelist Rules']/field[@name='price']" position="after">
+            <xpath expr="//field[@name='item_ids']//field[@name='price']" position="after">
                 <field name="percent_price" invisible="not compute_price == 'percentage'" string="Desc %" optional="show"/>
                 <field name="base_pricelist_id" invisible="not compute_price == 'formula' or not base == 'pricelist'" string="Otra Tarifa" optional="show"/>
             </xpath>

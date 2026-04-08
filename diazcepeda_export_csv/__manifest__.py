@@ -11,6 +11,7 @@
     "depends": [
         "account",
         "diazcepeda_export_xls_contability",
+        "diazcepeda_document_format",  # Necesario para los campos referencia_auxiliar y codigo_normalizado
     ],
     "data": [
         "security/ir.model.access.csv",

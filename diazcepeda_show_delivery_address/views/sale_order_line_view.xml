@@ -5,7 +5,8 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-           <xpath expr="//field[@name='order_line']/tree//field[@name='qty_invoiced']" position="after">
+           <!-- Odoo 18: el embedded view usa <list> en lugar de <tree> -->
+           <xpath expr="//field[@name='order_line']/list//field[@name='qty_invoiced']" position="after">
                 <field name="price_bruto" string="Precio Bruto"/>
             </xpath>
         </field>

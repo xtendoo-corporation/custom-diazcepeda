@@ -162,7 +162,7 @@
                          t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
                         <t t-set="footer_data" t-value="doc._get_footer_data()"/>
                         <div style="margin-left:-14%;">
-                            <span t-raw="footer_data"/>
+                            <span t-out="footer_data"/>  <!-- t-raw eliminado en Odoo 18; Markup() en Python garantiza HTML sin escapar -->
                         </div>
                     </div>
                     <div id="total" class="row" name="total">

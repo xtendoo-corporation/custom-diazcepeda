@@ -1,4 +1,6 @@
 from odoo import models, fields, api
+# Markup necesario para t-out con HTML en Odoo 17+; t-raw fue eliminado
+from markupsafe import Markup
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
@@ -17,5 +19,6 @@ class AccountMove(models.Model):
         if self.company_id != fdc_company_id:
             param_obj = self.env['ir.config_parameter'].sudo()
             footer_data = param_obj.get_param('footer_data', default='')
-            return footer_data.replace('\n', '<br/>')
-        return ''
+            # Markup permite usar t-out en lugar del obsoleto t-raw (Odoo 18)
+            return Markup(footer_data.replace('\n', '<br/>'))
+        return Markup('')

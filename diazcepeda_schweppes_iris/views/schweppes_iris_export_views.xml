@@ -44,24 +44,25 @@
         </field>
     </record>
 
+    <!-- Vista lista (Odoo 18: <list> reemplaza a <tree>) -->
     <record id="view_schweppes_iris_export_tree" model="ir.ui.view">
         <field name="name">schweppes.iris.export.tree</field>
         <field name="model">schweppes.iris.export</field>
         <field name="arch" type="xml">
-            <tree string="Exportaciones Schweppes IRIS">
+            <list string="Exportaciones Schweppes IRIS">
                 <field name="name"/>
                 <field name="date_from"/>
                 <field name="date_to"/>
                 <field name="state"/>
                 <field name="create_date"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_schweppes_iris_export" model="ir.actions.act_window">
         <field name="name">Exportación Schweppes IRIS</field>
         <field name="res_model">schweppes.iris.export</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>  <!-- Odoo 18: 'tree' → 'list' -->
     </record>
 
     <menuitem id="menu_schweppes_iris_root" name="Schweppes IRIS" parent="sale.menu_sale_report" sequence="100"/>

@@ -2,29 +2,23 @@
 <odoo>
     <template id="report_saleorder_document_inherit" inherit_id="sale.report_saleorder_document">
 
-        <xpath expr="//h2" position="replace">
-            <table class="table table-sm mt-2 mb-3" style="border: none;">
-                <tr>
-                    <td class="text-left" style="border: none;">
-                        <h2>
-                            <t t-if="doc.state in ('draft', 'sent')">
-                                <span style="font-weight: normal;">Presupuesto: </span>
-                            </t>
-                            <t t-else="">
-                                <span style="font-weight: normal;">Pedido: </span>
-                            </t>
-                            <span t-field="doc.name"/>
-                        </h2>
-                    </td>
-                    <td class="text-right" style="border: none;">
-                        <div class="text-muted">
-                            <span>
-                                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
-                            </span>
-                        </div>
-                    </td>
-                </tr>
-            </table>
+        <!-- Odoo 18: ya no existe <h2> en este template; el título se define con
+             t-set="layout_document_title" y lo renderiza web.external_layout -->
+        <xpath expr="//t[@t-set='layout_document_title']" position="replace">
+            <t t-set="layout_document_title">
+                <span t-if="is_proforma">Factura Pro-Forma # </span>
+                <span t-elif="doc.state in ['draft','sent']"><span style="font-weight: normal;">Presupuesto: </span></span>
+                <span t-else=""><span style="font-weight: normal;">Pedido: </span></span>
+                <span t-field="doc.name">SO0000</span>
+            </t>
+        </xpath>
+
+        <!-- Parámetro de vacaciones reubicado: antes estaba junto al h2,
+             ahora se añade antes del bloque de informaciones del pedido -->
+        <xpath expr="//div[@id='informations']" position="before">
+            <div class="text-muted text-end mb-2">
+                <strong t-esc="env['ir.config_parameter'].sudo().get_param('diazcepeda.vacation')"/>
+            </div>
         </xpath>
 
         <xpath expr="//th[@name='th_priceunit']" position="replace">
@@ -45,21 +39,19 @@
                 <span t-field="line.product_uom_qty">3</span>
             </td>
         </xpath>
-         <xpath expr="//span[@t-field='doc.note']" position="after">
-             <t t-set="show_gastos_gestion" t-value="doc._is_gasto_gestion()"/>
+        <xpath expr="//span[@t-field='doc.note']" position="after">
+            <t t-set="show_gastos_gestion" t-value="doc._is_gasto_gestion()"/>
         </xpath>
-
-         <xpath expr="//span[@name='order_note']" position="after">
+        <xpath expr="//span[@name='order_note']" position="after">
             <t t-if="is_copy == 2">
                 <p style="font-weight:bolder;color:black;">*Este documento es una copia.</p>
             </t>
         </xpath>
-
-       <xpath expr="//div[@name='so_total_summary']" position="after">
-             <div style="margin-top:-60px;" id="left-elements" t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
+        <xpath expr="//div[@name='so_total_summary']" position="after">
+            <div style="margin-top:-60px;" id="left-elements" t-attf-class="#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} ms-5 d-inline-block float-start">
                 <t t-set="footer_data" t-value="doc._get_footer_data()"/>
                 <div style="margin-left:-14%;">
-                    <span t-raw="footer_data"/>
+                    <span t-out="footer_data"/>
                 </div>
             </div>
         </xpath>

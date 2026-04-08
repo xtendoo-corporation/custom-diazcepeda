@@ -38,12 +38,13 @@ class DiazCepedaExportCSV(models.TransientModel):
     start_date = fields.Date(
         string="Fecha inicio",
         required=True,
-        default=_default_start_date()
+        # Sin paréntesis: se evalúa en cada creación, no al importar el módulo
+        default=_default_start_date
     )
     end_date = fields.Date(
         string="Fecha fin",
         required=True,
-        default=_default_end_date()
+        default=_default_end_date
     )
     csv_file = fields.Binary(
         string="CSV File",
@@ -64,7 +65,8 @@ class DiazCepedaExportCSV(models.TransientModel):
             ('invoice_date', '<=', self.end_date)]
         )
         invoices_lines = invoices.invoice_line_ids.filtered(lambda l: l.product_id.categ_id.name == ('Cerveza'))
-        partners = invoices_lines.mapped('partner_id')
+        # account.move.line no tiene partner_id directo; se obtiene desde el asiento (move_id)
+        partners = invoices_lines.mapped('move_id.partner_id')
 
         file_path_a = self.create_a_csv(invoices_lines)
         file_path_b = self.create_b_csv(invoices_lines)
@@ -114,7 +116,8 @@ class DiazCepedaExportCSV(models.TransientModel):
             ('invoice_date', '<=', self.end_date)]
         )
         invoices_lines = invoices.invoice_line_ids.filtered(lambda l: l.product_id.categ_id.name == ('Cerveza'))
-        partners = invoices_lines.mapped('partner_id')
+        # account.move.line no tiene partner_id directo; se obtiene desde el asiento (move_id)
+        partners = invoices_lines.mapped('move_id.partner_id')
 
         file_path_a = self.create_a_csv(invoices_lines)
         file_path_b = self.create_b_csv(invoices_lines)
@@ -282,7 +285,8 @@ class DiazCepedaExportCSV(models.TransientModel):
                 writer.writerow([
                     CONCESIONARIO,
                     partner.ref or '',
-                    partner.comercial if partner.comercial else partner.name,
+                    # commercial_company_name es el campo estándar Odoo 18 para nombre comercial
+                    partner.commercial_company_name or partner.name,
                     partner.street or '',
                     partner.city or '',
                     partner.zip or '',

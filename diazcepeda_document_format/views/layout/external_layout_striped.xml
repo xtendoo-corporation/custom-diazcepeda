@@ -2,7 +2,10 @@
 <odoo>
     <template id="custom_layout_invoice" inherit_id="web.external_layout_boxed">
         <!--Header-->
-        <xpath expr="//div[@class='o_boxed_header']" position="replace">
+        <!-- En Odoo 18, external_layout_boxed usa t-attf-class dinámico:
+             header → t-attf-class="header o_company_#{company.id}_layout"
+             La clase estática 'o_boxed_header' fue eliminada. -->
+        <xpath expr="//div[contains(@t-attf-class, 'header')]" position="replace">
             <div class="o_boxed_header" t-if="is_preprinted != 2">
                 <div class="row mb8">
                     <div class="col-6">
@@ -42,7 +45,9 @@
         <!--Fin Header -->
 
         <!--Footer-->
-        <xpath expr="//div[contains(@t-attf-class, 'footer o_boxed_footer')]" position="replace">
+        <!-- footer → t-attf-class="footer o_company_#{company.id}_layout ..."
+             La clase 'o_boxed_footer' tampoco existe en Odoo 18. -->
+        <xpath expr="//div[contains(@t-attf-class, 'footer')]" position="replace">
             <div t-attf-class="footer o_boxed_footer o_company_#{company.id}_layout" t-if="is_preprinted != 2">
                 <div class="text-center">
                     <div t-field="company.report_footer">Company Report Footer</div>

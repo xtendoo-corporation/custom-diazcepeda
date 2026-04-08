@@ -1,4 +1,6 @@
 from odoo import models, fields, api
+# Markup necesario para t-out con HTML en Odoo 17+; t-raw fue eliminado
+from markupsafe import Markup
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
@@ -14,4 +16,5 @@ class SaleOrder(models.Model):
     def _get_footer_data(self):
         param_obj = self.env['ir.config_parameter'].sudo()
         footer_data = param_obj.get_param('footer_data', default='')
-        return footer_data.replace('\n', '<br/>')
+        # Markup permite usar t-out en lugar del obsoleto t-raw (Odoo 18)
+        return Markup(footer_data.replace('\n', '<br/>'))
