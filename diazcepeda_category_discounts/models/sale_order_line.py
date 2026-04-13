@@ -8,7 +8,7 @@ class SaleOrderLine(models.Model):
         """Override to force base price if category demands showing discount."""
         self.ensure_one()
         pricelist_price = self._get_pricelist_price()
-        
+
         # If no setting or marked to NOT show discount, use discounted price as unit price
         if not self.product_id.categ_id.show_discount_in_line:
             return pricelist_price
@@ -36,7 +36,7 @@ class SaleOrderLine(models.Model):
                 # We enforce showing the discount, even if pricelist is 'with_discount'
                 if not line.pricelist_item_id:
                     continue
-                
+
                 line_company = line.with_company(line.company_id)
                 pricelist_price = line_company._get_pricelist_price()
                 base_price = line_company._get_pricelist_price_before_discount()
@@ -70,13 +70,26 @@ class SaleOrderLine(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        # FIX: no mutar el dict `vals` compartido dentro del bucle.
+        # En un write() batch (varias líneas a la vez), modificar vals['price_unit'] en la
+        # primera línea afectaría a todas las demás con el precio de la primera.
+        # Se construye un dict individual por línea para cada caso que requiere ajuste.
         if 'discount' in vals and vals.get('discount') and vals['discount'] > 0:
-            for line in self:
+            lines_need_fix = self.filtered(
+                lambda l: l.product_id.categ_id and not l.product_id.categ_id.show_discount_in_line
+            )
+            lines_skip = self - lines_need_fix
+            for line in lines_need_fix:
                 product = self.env['product.product'].browse(vals.get('product_id', line.product_id.id))
                 if product.categ_id and not product.categ_id.show_discount_in_line:
                     price_unit = vals.get('price_unit', line.price_unit)
-                    vals['price_unit'] = price_unit * (1 - (vals['discount'] / 100.0))
-                    vals['discount'] = 0.0
+                    line_vals = dict(vals)
+                    line_vals['price_unit'] = price_unit * (1 - (vals['discount'] / 100.0))
+                    line_vals['discount'] = 0.0
+                    super(SaleOrderLine, line).write(line_vals)
+            if lines_skip:
+                super(SaleOrderLine, lines_skip).write(vals)
+            return True
         return super().write(vals)
 
 

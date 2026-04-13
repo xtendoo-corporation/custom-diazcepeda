@@ -1,7 +1,7 @@
 {
     "name": "Diaz Cepeda Export XLS Contability",
     "summary": """Diaz Cepeda Export XLS Contability""",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "description": """Diaz Cepeda Export XLS Contability""",
     "company": "Xtendoo",
     "author": "Manuel Calero, Darío Cruz",

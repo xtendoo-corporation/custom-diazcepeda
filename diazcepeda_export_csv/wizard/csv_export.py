@@ -25,10 +25,13 @@ CONCESIONARIO: str = '02055342'
 FTP_SERVER: str = '13.93.124.174'
 FTP_DIRECTORY: str = ''
 
-def _default_start_date():
+# FIX Odoo 18: las funciones default= son invocadas con self (el record) como primer argumento.
+# Sin el parámetro causaba: TypeError: _default_start_date() takes 0 positional arguments but 1 was given
+# Este error bloqueaba la apertura del wizard desde la UI al llamar default_get().
+def _default_start_date(self):
     return date.today() - timedelta(days=7)
 
-def _default_end_date():
+def _default_end_date(self):
     return date.today()
 
 class DiazCepedaExportCSV(models.TransientModel):
@@ -59,8 +62,10 @@ class DiazCepedaExportCSV(models.TransientModel):
         """ Process the file chosen in the wizard, create bank statement(s) and go to reconciliation. """
         self.ensure_one()
 
-        # SACO LOS DATOS QUE NECESITO Y SE LO PASO A LA FUNCION QUE CREA EL CSV
+        # FIX: añadir move_type='out_invoice' para excluir apuntes de diario que tienen
+        # invoice_date=False y causaban AttributeError: 'NoneType' has no attribute 'year'
         invoices = self.env['account.move'].search([
+            ('move_type', '=', 'out_invoice'),
             ('invoice_date', '>=', self.start_date),
             ('invoice_date', '<=', self.end_date)]
         )
@@ -73,19 +78,29 @@ class DiazCepedaExportCSV(models.TransientModel):
         file_path_c = self.create_c_csv(partners)
 
         if file_path_a:
-            print("File A created at:", file_path_a)
+            _logger.info("File A created at: %s", file_path_a)
             self.show_csv_content(file_path_a)
-            self.upload_csv_to_ftp(file_path_a)
+            # FIX: SFTP no bloquea la descarga del ZIP si el servidor no está disponible
+            try:
+                self.upload_csv_to_ftp(file_path_a)
+            except Exception as ftp_err:
+                _logger.warning("SFTP upload failed for A (descarga local disponible): %s", ftp_err)
 
         if file_path_b:
-            print("File B created at:", file_path_b)
+            _logger.info("File B created at: %s", file_path_b)
             self.show_csv_content(file_path_b)
-            self.upload_csv_to_ftp(file_path_b)
+            try:
+                self.upload_csv_to_ftp(file_path_b)
+            except Exception as ftp_err:
+                _logger.warning("SFTP upload failed for B (descarga local disponible): %s", ftp_err)
 
         if file_path_c:
-            print("File C created at:", file_path_c)
+            _logger.info("File C created at: %s", file_path_c)
             self.show_csv_content(file_path_c)
-            self.upload_csv_to_ftp(file_path_c)
+            try:
+                self.upload_csv_to_ftp(file_path_c)
+            except Exception as ftp_err:
+                _logger.warning("SFTP upload failed for C (descarga local disponible): %s", ftp_err)
 
         zip_path = '/tmp/invoices_csv.zip'
         with zipfile.ZipFile(zip_path, 'w') as zipf:
@@ -169,6 +184,11 @@ class DiazCepedaExportCSV(models.TransientModel):
         products = []
 
         for line in invoices_lines:
+            # FIX: saltar líneas cuya factura no tiene fecha (evita AttributeError en .year/.month)
+            if not line.move_id.invoice_date:
+                _logger.warning("Línea omitida en CSV A: move_id=%s sin invoice_date", line.move_id.id)
+                continue
+
             total_importe_descuento = 0
             total_unidades_venta = line.quantity
 
@@ -239,6 +259,11 @@ class DiazCepedaExportCSV(models.TransientModel):
         products = []
 
         for line in invoices_lines:
+            # FIX: saltar líneas cuya factura no tiene fecha (evita AttributeError en .year/.month)
+            if not line.move_id.invoice_date:
+                _logger.warning("Línea omitida en CSV B: move_id=%s sin invoice_date", line.move_id.id)
+                continue
+
             total_unidades_venta = line.quantity
 
             # Check if the product already exists in the products array

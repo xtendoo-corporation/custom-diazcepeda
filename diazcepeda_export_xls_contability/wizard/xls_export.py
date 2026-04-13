@@ -32,7 +32,9 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             domain.append(('move_type', 'in', ['in_invoice', 'in_refund']))
         elif self.customers_check and not self.providers_check:
             domain.append(('move_type', 'in', ['out_invoice', 'out_refund']))
-        elif self.providers_check and self.customers_check:
+        else:
+            # FIX: sin filtro se incluirían asientos de diario (move_type='entry') con
+            # invoice_date=None → AttributeError en .year/.month o partner_id vacío.
             domain.append(('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']))
 
         invoices = self.env['account.move'].search(domain)
@@ -65,6 +67,11 @@ class DiazCepedaExportXLSContability(models.TransientModel):
             worksheet.cell(row=1, column=col_idx, value=header)
 
         for row_idx, invoice in enumerate(invoices, start=2):
+            # FIX: saltar facturas sin fecha (evita AttributeError en .year/.month/.day)
+            if not invoice.invoice_date:
+                _logger.warning("Factura omitida en XLS: id=%s sin invoice_date", invoice.id)
+                continue
+
             is_refound = invoice.move_type in ['out_refund', 'in_refund']
             sign = -1 if is_refound else 1
 

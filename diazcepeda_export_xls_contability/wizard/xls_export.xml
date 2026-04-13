@@ -33,7 +33,7 @@
         <field name="target">new</field>
     </record>
 
-    <menuitem id="menu_export_invoice_line_csv"
+    <menuitem id="menu_export_invoice_xls_contability"
               name="Informe de contabilidad"
               parent="diazcepeda_administration.menu_diazcepeda_config"
               action="action_xls_export"/>
