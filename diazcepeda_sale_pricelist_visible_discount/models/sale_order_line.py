@@ -15,7 +15,7 @@ El precio final neto (price_unit × (1 − discount/100)) no cambia.
 """
 import logging
 
-from odoo import api, models
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
@@ -131,36 +131,57 @@ class SaleOrderLine(models.Model):
     # ------------------------------------------------------------------
 
     def _xtd_get_base_price_from_source_pricelist(self, rule):
-        """Obtiene el precio desde ``rule.base_pricelist_id``.
+        """Obtiene el ``list_price`` del producto como precio bruto real.
 
-        Respeta el contexto correcto: producto, cantidad, uom, fecha y moneda.
+        El precio de lista del producto (``product.list_price``) es el precio
+        antes de aplicar cualquier tarifa, independientemente de cuántos niveles
+        de encadenamiento tenga la tarifa activa.  Esto permite calcular el
+        descuento equivalente total cuando la cadena de tarifas incluye reglas
+        de descuento en niveles intermedios (p.ej. INMACULADA → AGUA SOLAN
+        que ya tiene 65 % de descuento sobre el precio de venta).
+
+        Convierte el importe a la moneda del pedido y a la UOM de la línea.
 
         :returns: float con el precio base, o ``None`` si no se puede obtener.
         """
         self.ensure_one()
-        base_pricelist = rule.base_pricelist_id
-        order = self.order_id
         product = self.product_id
-        qty = self.product_uom_qty or 1.0
+        if not product:
+            return None
+
+        order = self.order_id
         uom = self.product_uom
         date = self._get_order_date()
-        currency = order.currency_id or base_pricelist.currency_id
+        order_currency = order.currency_id or rule.base_pricelist_id.currency_id
+        company = order.company_id or self.env.company
 
         try:
-            base_price = base_pricelist._get_product_price(
-                product.with_context(**self._get_product_price_context()),
-                qty,
-                uom=uom or False,
-                date=date,
-                currency=currency,
-            )
+            # list_price está siempre en la moneda de la compañía
+            price = product.list_price
+
+            # Conversión de UOM si la línea usa una unidad diferente
+            if uom and uom != product.uom_id:
+                price = product.uom_id._compute_price(price, uom)
+
+            # Conversión de moneda si el pedido usa moneda distinta
+            company_currency = company.currency_id
+            if company_currency and order_currency and company_currency != order_currency:
+                price = company_currency._convert(
+                    price, order_currency, company, date or fields.Date.today()
+                )
         except Exception:
+            _logger.debug(
+                "diazcepeda_sale_pricelist_visible_discount: "
+                "error obteniendo list_price para %s",
+                product.display_name,
+                exc_info=True,
+            )
             return None
 
-        if not isinstance(base_price, (int, float)):
+        if not isinstance(price, (int, float)) or price <= 0:
             return None
 
-        return float(base_price)
+        return float(price)
 
     # ------------------------------------------------------------------
     # Cálculo del descuento equivalente

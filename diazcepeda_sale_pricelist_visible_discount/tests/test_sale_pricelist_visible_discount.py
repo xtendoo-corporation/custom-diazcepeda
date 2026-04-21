@@ -335,6 +335,76 @@ class TestSalePricelistVisibleDiscount(TransactionCase):
         )
 
     # ------------------------------------------------------------------
+    # Caso 8: cadena real — tarifa intermedia con descuento porcentual
+    # ------------------------------------------------------------------
+
+    def test_08_chained_pricelist_intermediate_discount(self):
+        """Escenario real: tarifa A → tarifa B (65% off list_price).
+
+        Reproduce el caso INMACULADA → AGUA SOLAN:
+          - Tarifa intermedia tiene regla 'percentage' con 65% de descuento
+            sobre el precio de venta del producto (list_price).
+          - Tarifa derivada tiene regla 'formula' con 0% adicional sobre
+            la tarifa intermedia.
+          - Resultado esperado: price_unit = list_price, discount = 65%.
+        """
+        # Tarifa intermedia con 65% de descuento porcentual sobre el producto
+        pricelist_intermediate = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Intermedia 65%",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "percentage",
+                            "percent_price": 65.0,
+                        },
+                    )
+                ],
+            }
+        )
+        # Tarifa derivada: 0% adicional sobre la tarifa intermedia (igual al
+        # escenario INMACULADA que delega a AGUA SOLAN cuando no hay regla propia)
+        pricelist_derived = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Derivada Sobre Intermedia",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "formula",
+                            "base": "pricelist",
+                            "base_pricelist_id": pricelist_intermediate.id,
+                            "price_discount": 0.0,
+                        },
+                    )
+                ],
+            }
+        )
+        _order, line = self._make_sale_order(pricelist_derived)
+
+        # list_price = 100, 65% de descuento → precio neto = 35
+        net_price = line.price_unit * (1.0 - line.discount / 100.0)
+        self._assertAlmostEqual(
+            line.price_unit, 100.0,
+            msg="price_unit debe reflejar el list_price (100)"
+        )
+        self._assertAlmostEqual(
+            line.discount, 65.0,
+            msg="discount debe ser 65 (descuento total de la cadena)"
+        )
+        self._assertAlmostEqual(
+            net_price, 35.0,
+            msg="precio neto debe ser 35 (100 - 65%)"
+        )
+
+    # ------------------------------------------------------------------
     # Test de integridad: flujo interno paso a paso
     # ------------------------------------------------------------------
 
