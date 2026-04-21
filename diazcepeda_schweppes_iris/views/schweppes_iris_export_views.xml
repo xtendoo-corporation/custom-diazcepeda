@@ -64,8 +64,7 @@
         <field name="res_model">schweppes.iris.export</field>
         <field name="view_mode">list,form</field>  <!-- Odoo 18: 'tree' → 'list' -->
     </record>
-
-    <menuitem id="menu_schweppes_iris_root" name="Schweppes IRIS" parent="sale.menu_sale_report" sequence="100"/>
-    <menuitem id="menu_schweppes_iris_export" name="Generar Exportación" parent="menu_schweppes_iris_root" action="action_schweppes_iris_export" sequence="10"/>
+    <menuitem id="menu_schweppes_iris_root" name="Schweppes IRIS" parent="diazcepeda_administration.menu_diazcepeda_config" sequence="100"/>
+    <menuitem id="menu_schweppes_iris_export" name="Exportar líneas de factura de Sweppes Iris" parent="menu_schweppes_iris_root" action="action_schweppes_iris_export" sequence="10"/>
 
 </odoo>

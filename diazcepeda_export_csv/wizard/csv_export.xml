@@ -37,15 +37,16 @@
 
 
     <record id="action_csv_export" model="ir.actions.act_window">
-        <field name="name">CSV Export</field>
+        <field name="name">Exportar líneas de factura de Mahou-San Miguel</field>
         <field name="res_model">diazcepeda.export.csv</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
 
+<!--    <menuitem id="menu_mahou_root" name="Mahou - San Miguel" parent="diazcepeda_administration.menu_diazcepeda_config" sequence="100"/>-->
     <menuitem id="menu_export_invoice_line_csv"
-              name="Exportar líneas de factura a CSV"
-              parent="diazcepeda_administration.menu_diazcepeda_config"
+              name="Exportar líneas de factura de Mahou-San Miguel"
+              parent="diazcepeda_export_xls_contability.menu_mahou_root"
               action="action_csv_export"/>
 
 </odoo>

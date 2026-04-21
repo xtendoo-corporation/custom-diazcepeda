@@ -32,10 +32,10 @@
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
-
+     <menuitem id="menu_mahou_root" name="Mahou - San Miguel" parent="diazcepeda_administration.menu_diazcepeda_config" sequence="100"/>
     <menuitem id="menu_export_invoice_xls_contability"
               name="Informe de contabilidad"
-              parent="diazcepeda_administration.menu_diazcepeda_config"
+              parent="menu_mahou_root"
               action="action_xls_export"/>
 
 </odoo>
