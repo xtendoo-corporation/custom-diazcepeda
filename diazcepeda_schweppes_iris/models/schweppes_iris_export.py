@@ -22,6 +22,10 @@ class SchweppesIrisExport(models.Model):
     file_data = fields.Binary(string='Archivo TXT', readonly=True)
     file_name = fields.Char(string='Nombre del Archivo', readonly=True)
 
+    # Campos computados para la previsualización del archivo
+    preview_file_data = fields.Binary(string='Archivo TXT Previsualización', readonly=True, compute='_compute_preview_file_data')
+    preview_file_name = fields.Char(string='Nombre Archivo Previsualización', readonly=True, compute='_compute_preview_file_data')
+
     # Summary fields for UX
     invoice_count = fields.Integer(string='Nº Facturas', readonly=True, tracking=True)
     partner_count = fields.Integer(string='Nº Clientes', readonly=True, tracking=True)
@@ -179,6 +183,187 @@ class SchweppesIrisExport(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def action_preview_file(self):
+        self.ensure_one()
+        # Reutiliza la lógica de generación, pero solo genera el archivo y lo devuelve como descarga
+        # No cambia el estado ni crea adjuntos ni mensajes
+        domain = [
+            ('move_type', '=', 'out_invoice'),
+            ('state', '=', 'posted'),
+            ('invoice_date', '>=', self.date_from),
+            ('invoice_date', '<=', self.date_to),
+            ('company_id', '=', self.company_id.id),
+            ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
+        ]
+        invoices = self.env['account.move'].search(domain)
+        if not invoices:
+            raise UserError(_("No se han encontrado facturas publicadas en este rango de fechas."))
+        lines = []
+        orders_count = len(invoices)
+        partners_to_export = self.env['res.partner']
+        now = datetime.now()
+        date_tx = now.strftime('%Y%m%d')
+        nn = "01"
+        dist_code = self.company_id.schweppes_distributor_code or "1000026677"
+        lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
+        for move in invoices:
+            partners_to_export |= move.partner_id
+            route = move.partner_id.schweppes_route or "56"
+            cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
+            date_inv = move.invoice_date.strftime('%Y%m%d')
+            payment_type = 'CO'
+            lines.append(iris_formatter.format_dicp(
+                move.name[-10:],
+                route,
+                cust_code,
+                date_inv,
+                date_inv,
+                payment_type,
+                move.ref or ""
+            ))
+            for line in move.invoice_line_ids:
+                if not line.product_id or not line.product_id.schweppes_product_code:
+                    continue
+                prod_code = line.product_id.schweppes_product_code
+                lines.append(iris_formatter.format_didp(
+                    move.name[-10:],
+                    prod_code,
+                    line.quantity,
+                    0,
+                    line.quantity,
+                    0,
+                    line.price_unit
+                ))
+                if line.discount:
+                    disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
+                    lines.append(iris_formatter.format_didd(
+                        move.name[-10:],
+                        prod_code,
+                        'ES',
+                        disc_amount
+                    ))
+        for partner in partners_to_export:
+            lines.append(iris_formatter.format_dimc(
+                partner.schweppes_customer_code or partner.ref or str(partner.id),
+                partner.schweppes_route or "56",
+                partner.name,
+                partner.commercial_partner_id.name,
+                partner.street or "",
+                partner.vat or "",
+                partner.schweppes_delivery_type or "D",
+                "01",
+                "CO",
+                "AC",
+                "", "", "S", "SSSSSSS",
+                "", "", "", "N",
+                partner.email or "",
+                partner.city or "",
+                partner.state_id.name if partner.state_id else "",
+                partner.zip or "",
+                partner.phone or "",
+                "",
+                partner.schweppes_customer_code or "",
+                ""
+            ))
+        records_count = len(lines) + 1
+        lines.append(iris_formatter.format_ft(records_count, orders_count))
+        content = "\r\n".join(lines) + "\r\n"
+        file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
+        # Devuelve una acción de descarga directa
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f"/web/content/?model=schweppes.iris.export&id={self.id}&field=preview_file_data&filename_field=preview_file_name&download=true",
+            'target': 'self',
+        }
+
+    def _compute_preview_file_data(self):
+        for rec in self:
+            domain = [
+                ('move_type', '=', 'out_invoice'),
+                ('state', '=', 'posted'),
+                ('invoice_date', '>=', rec.date_from),
+                ('invoice_date', '<=', rec.date_to),
+                ('company_id', '=', rec.company_id.id),
+                ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
+            ]
+            invoices = rec.env['account.move'].search(domain)
+            if not invoices:
+                rec.preview_file_data = False
+                rec.preview_file_name = False
+                continue
+            lines = []
+            orders_count = len(invoices)
+            partners_to_export = rec.env['res.partner']
+            now = datetime.now()
+            date_tx = now.strftime('%Y%m%d')
+            nn = "01"
+            dist_code = rec.company_id.schweppes_distributor_code or "1000026677"
+            lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
+            for move in invoices:
+                partners_to_export |= move.partner_id
+                route = move.partner_id.schweppes_route or "56"
+                cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
+                date_inv = move.invoice_date.strftime('%Y%m%d')
+                payment_type = 'CO'
+                lines.append(iris_formatter.format_dicp(
+                    move.name[-10:],
+                    route,
+                    cust_code,
+                    date_inv,
+                    date_inv,
+                    payment_type,
+                    move.ref or ""
+                ))
+                for line in move.invoice_line_ids:
+                    if not line.product_id or not line.product_id.schweppes_product_code:
+                        continue
+                    prod_code = line.product_id.schweppes_product_code
+                    lines.append(iris_formatter.format_didp(
+                        move.name[-10:],
+                        prod_code,
+                        line.quantity,
+                        0,
+                        line.quantity,
+                        0,
+                        line.price_unit
+                    ))
+                    if line.discount:
+                        disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
+                        lines.append(iris_formatter.format_didd(
+                            move.name[-10:],
+                            prod_code,
+                            'ES',
+                            disc_amount
+                        ))
+            for partner in partners_to_export:
+                lines.append(iris_formatter.format_dimc(
+                    partner.schweppes_customer_code or partner.ref or str(partner.id),
+                    partner.schweppes_route or "56",
+                    partner.name,
+                    partner.commercial_partner_id.name,
+                    partner.street or "",
+                    partner.vat or "",
+                    partner.schweppes_delivery_type or "D",
+                    "01",
+                    "CO",
+                    "AC",
+                    "", "", "S", "SSSSSSS",
+                    "", "", "", "N",
+                    partner.email or "",
+                    partner.city or "",
+                    partner.state_id.name if partner.state_id else "",
+                    partner.zip or "",
+                    partner.phone or "",
+                    "",
+                    partner.schweppes_customer_code or "",
+                    ""
+                ))
+            records_count = len(lines) + 1
+            lines.append(iris_formatter.format_ft(records_count, orders_count))
+            content = "\r\n".join(lines) + "\r\n"
+            rec.preview_file_data = base64.b64encode(content.encode('utf-8'))
+            rec.preview_file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
 
     def action_view_invoices(self):
         self.ensure_one()

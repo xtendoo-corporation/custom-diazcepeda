@@ -8,9 +8,18 @@
                 <header>
                     <button name="action_generate_file" string="Generar Fichero" type="object" class="oe_highlight" invisible="state == 'done'"/>
                     <button name="action_generate_file" string="Regenerar Fichero" type="object" invisible="state == 'draft'"/>
+                    <button name="action_preview_file" string="Previsualizar" type="object" class="btn-primary"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <field name="date_from" readonly="state == 'done'"/>
+                        <field name="date_to" readonly="state == 'done'"/>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                    </group>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_invoices" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="invoice_count == 0">
                             <field name="invoice_count" string="Facturas" widget="statinfo"/>
@@ -19,27 +28,16 @@
                             <field name="partner_count" string="Clientes" widget="statinfo"/>
                         </button>
                     </div>
-                    <div class="oe_title">
-                        <h1><field name="name"/></h1>
-                    </div>
-                    <group>
-                        <group>
-                            <field name="date_from" readonly="state == 'done'"/>
-                            <field name="date_to" readonly="state == 'done'"/>
-                        </group>
-                        <group>
-                            <field name="company_id" groups="base.group_multi_company"/>
-                            <field name="file_name" invisible="not file_name"/>
-                            <field name="file_data" filename="file_name" invisible="not file_data"/>
-                            <field name="line_count" invisible="state == 'draft'"/>
-                        </group>
-                    </group>
+                    <notebook>
+                        <page string="Archivo generado">
+                            <group>
+                                <field name="file_name" invisible="not file_name"/>
+                                <field name="file_data" filename="file_name" invisible="not file_data"/>
+                                <field name="line_count" invisible="state == 'draft'"/>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
             </form>
         </field>
     </record>
