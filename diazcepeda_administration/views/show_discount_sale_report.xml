@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Heredar la vista tree de res.partner para añadir el campo ref -->
+    <!-- Odoo 18: la vista base usa complete_name (no display_name) y <list> en vez de <tree> -->
+    <record id="view_show_discount_sale_report" model="ir.ui.view">
+        <field name="name">view.show.discount.sale.report</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.sale_report_view_tree"/>
+        <field name="arch" type="xml">
+            <field name="price_subtotal" position="before">
+                <field name="discount" string="Desc.(%)" optional="show"/>
+            </field>
+        </field>
+    </record>
+</odoo>

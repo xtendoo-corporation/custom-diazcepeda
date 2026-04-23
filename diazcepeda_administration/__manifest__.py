@@ -9,11 +9,13 @@
     "category": "Website",
     "license": "AGPL-3",
     "depends": [
-        "account"
+        "account",
+        "sale",
     ],
     "data": [
         "views/menu_views.xml",
         "views/partner_views.xml",
+        "views/show_discount_sale_report.xml",
     ],
     "installable": True,
     'application': True,
