@@ -106,6 +106,12 @@
                                     <span t-field="doc.amount_untaxed"/>
                                 </td>
                             </tr>
+                                <tr>
+                                    <td><strong>Total P.V.</strong></td>
+                                    <td class="text-end">
+                                        <span t-field="doc.amount_total_green_point"/>
+                                    </td>
+                                </tr>
                             <tr>
                                 <td><strong>Impuestos:</strong></td>
                                 <td class="text-end">

@@ -168,13 +168,20 @@
                     <div id="total" class="row" name="total">
                         <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">
                             <table class="table table-sm table-borderless">
+                                <tr class="border-black o_total">
+                                    <td><strong>Total P.V.</strong></td>
+                                    <td class="text-end">
+                                        <span style="color:white;" t-field="doc.amount_total_green_point"/>
+                                    </td>
+                                </tr>
                                 <!-- Solo mostrar el total -->
                                 <tr class="border-black o_total">
                                     <td><strong>Total</strong></td>
                                     <td class="text-end">
-                                        <span t-field="doc.amount_total"/>
+                                        <span style="color:white;" t-field="doc.amount_total"/>
                                     </td>
                                 </tr>
+
                             </table>
                         </div>
                     </div>
