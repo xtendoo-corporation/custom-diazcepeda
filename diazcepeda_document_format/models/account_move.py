@@ -22,3 +22,12 @@ class AccountMove(models.Model):
             # Markup permite usar t-out en lugar del obsoleto t-raw (Odoo 18)
             return Markup(footer_data.replace('\n', '<br/>'))
         return Markup('')
+
+    # ELIMINAR el override de tax_totals porque causa errores en otros modelos
+    # Si necesitas el valor en el template, usa un método auxiliar o añade el valor en el contexto del informe.
+
+    def get_tax_totals_with_green_point(self):
+        self.ensure_one()
+        tax_totals = self.tax_totals.copy() if self.tax_totals else {}
+        tax_totals['amount_total_green_point'] = self.amount_total_green_point
+        return tax_totals
