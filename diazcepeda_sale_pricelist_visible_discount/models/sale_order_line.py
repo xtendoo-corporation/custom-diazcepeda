@@ -15,7 +15,7 @@ El precio final neto (price_unit × (1 − discount/100)) no cambia.
 """
 import logging
 
-from odoo import api, fields, models
+from odoo import api, models
 
 _logger = logging.getLogger(__name__)
 
@@ -137,18 +137,31 @@ class SaleOrderLine(models.Model):
     # ------------------------------------------------------------------
 
     def _xtd_base_pricelist_rule_is_discount_based(self, rule):
-        """Verifica que la regla aplicable en ``base_pricelist_id`` NO sea precio fijo.
+        """Verifica que haya un descuento porcentual real que mostrar.
 
-        Cuando la tarifa base (p.ej. AGUA SOLAN) tiene un precio fijo para el
-        producto, el precio final es ese importe concreto, no un descuento
-        porcentual sobre el precio de lista.  En ese caso no tiene sentido
-        mostrar un descuento visible calculado contra ``list_price``.
+        Distingue dos situaciones:
 
-        Devuelve True si la regla de la tarifa base es ``percentage`` o
-        ``formula`` (es decir, basada en porcentaje), False si es ``fixed``
-        o si no se puede determinar.
+        1. La regla ``formula`` tiene descuento propio (``price_discount > 0``):
+           la tarifa activa aplica un porcentaje adicional sobre la tarifa base.
+           En este caso siempre hay descuento visible independientemente del
+           tipo de regla en la tarifa base.
+
+        2. La regla es un **passthrough** (``price_discount = 0``): la tarifa
+           delega completamente en la tarifa base (p.ej. INMACULADA → AGUA SOLAN).
+           Solo se muestra descuento si la regla aplicable en la tarifa base
+           es de tipo ``percentage`` o ``formula``.  Si la tarifa base tiene un
+           precio fijo (``fixed``) para el producto, ese es el precio definitivo
+           y no procede calcular ningún descuento visible contra ``list_price``.
+
+        :returns: True si corresponde mostrar un descuento visible, False si no.
         """
         self.ensure_one()
+
+        # Caso 1: la fórmula tiene descuento propio → siempre actuar
+        if rule.price_discount:
+            return True
+
+        # Caso 2: passthrough → comprobar qué tipo de regla tiene la tarifa base
         base_pricelist = rule.base_pricelist_id
         product = self.product_id
         if not base_pricelist or not product:
@@ -157,7 +170,7 @@ class SaleOrderLine(models.Model):
             qty = self.product_uom_qty or 1.0
             uom = self.product_uom
             date = self._get_order_date()
-            _price, base_rule = base_pricelist._get_product_price_rule(
+            _price, base_rule_id = base_pricelist._get_product_price_rule(
                 product.with_context(**self._get_product_price_context()),
                 qty,
                 uom=uom or False,
@@ -165,8 +178,13 @@ class SaleOrderLine(models.Model):
             )
         except Exception:
             return False
-        if not base_rule:
+        if not base_rule_id:
             return False
+        # _get_product_price_rule devuelve el ID (int), no el recordset
+        if isinstance(base_rule_id, int):
+            base_rule = self.env["product.pricelist.item"].browse(base_rule_id)
+        else:
+            base_rule = base_rule_id
         return base_rule.compute_price in ("percentage", "formula")
 
     # ------------------------------------------------------------------
@@ -174,16 +192,22 @@ class SaleOrderLine(models.Model):
     # ------------------------------------------------------------------
 
     def _xtd_get_base_price_from_source_pricelist(self, rule):
-        """Obtiene el ``list_price`` del producto como precio bruto real.
+        """Obtiene el precio base (antes de descuento) según el tipo de regla.
 
-        El precio de lista del producto (``product.list_price``) es el precio
-        antes de aplicar cualquier tarifa, independientemente de cuántos niveles
-        de encadenamiento tenga la tarifa activa.  Esto permite calcular el
-        descuento equivalente total cuando la cadena de tarifas incluye reglas
-        de descuento en niveles intermedios (p.ej. INMACULADA → AGUA SOLAN
-        que ya tiene 65 % de descuento sobre el precio de venta).
+        Distingue dos situaciones para evitar depender de ``product.list_price``,
+        cuyo valor puede verse afectado por impuestos o módulos personalizados:
 
-        Convierte el importe a la moneda del pedido y a la UOM de la línea.
+        **Caso 1 — la fórmula tiene descuento propio** (``price_discount > 0``):
+        Se obtiene el precio desde ``base_pricelist_id`` directamente
+        (p.ej. precio fijo de 100 €), y el módulo calcula el descuento
+        equivalente al ``price_discount`` configurado.
+
+        **Caso 2 — passthrough** (``price_discount = 0``):
+        La tarifa delega completamente en la tarifa base (p.ej. INMACULADA →
+        AGUA SOLAN).  La tarifa base tiene una regla ``percentage`` con un
+        porcentaje conocido.  Se reconstruye el precio anterior al descuento
+        usando la fórmula inversa:
+        ``base = final_price / (1 − percent / 100)``
 
         :returns: float con el precio base, o ``None`` si no se puede obtener.
         """
@@ -192,39 +216,97 @@ class SaleOrderLine(models.Model):
         if not product:
             return None
 
+        if rule.price_discount:
+            # Caso 1: la fórmula tiene su propio descuento sobre la tarifa base.
+            # Obtenemos el precio desde la tarifa base (p.ej. precio fijo).
+            return self._xtd_get_price_from_base_pricelist(rule)
+
+        # Caso 2: passthrough — el descuento está en la regla de la tarifa base.
+        # Back-calculamos el precio anterior al descuento usando el percent_price.
+        return self._xtd_get_base_price_via_percent_inversion(rule)
+
+    def _xtd_get_price_from_base_pricelist(self, rule):
+        """Devuelve el precio de ``base_pricelist_id`` para el producto.
+
+        Usado cuando la fórmula tiene su propio ``price_discount``.
+
+        :returns: float o ``None``.
+        """
+        self.ensure_one()
+        base_pricelist = rule.base_pricelist_id
+        product = self.product_id
         order = self.order_id
+        qty = self.product_uom_qty or 1.0
         uom = self.product_uom
         date = self._get_order_date()
-        order_currency = order.currency_id or rule.base_pricelist_id.currency_id
-        company = order.company_id or self.env.company
-
+        currency = order.currency_id or base_pricelist.currency_id
         try:
-            # list_price está siempre en la moneda de la compañía
-            price = product.list_price
-
-            # Conversión de UOM si la línea usa una unidad diferente
-            if uom and uom != product.uom_id:
-                price = product.uom_id._compute_price(price, uom)
-
-            # Conversión de moneda si el pedido usa moneda distinta
-            company_currency = company.currency_id
-            if company_currency and order_currency and company_currency != order_currency:
-                price = company_currency._convert(
-                    price, order_currency, company, date or fields.Date.today()
-                )
+            price = base_pricelist._get_product_price(
+                product.with_context(**self._get_product_price_context()),
+                qty,
+                uom=uom or False,
+                date=date,
+                currency=currency,
+            )
         except Exception:
             _logger.debug(
                 "diazcepeda_sale_pricelist_visible_discount: "
-                "error obteniendo list_price para %s",
+                "error obteniendo precio de tarifa base para %s",
                 product.display_name,
                 exc_info=True,
             )
             return None
-
         if not isinstance(price, (int, float)) or price <= 0:
             return None
-
         return float(price)
+
+    def _xtd_get_base_price_via_percent_inversion(self, rule):
+        """Reconstruye el precio base desde el porcentaje de la regla base.
+
+        Cuando la tarifa base tiene una regla ``percentage`` con ``percent_price``
+        conocido, el precio antes del descuento se calcula como::
+
+            base = final_price / (1 − percent_price / 100)
+
+        :returns: float o ``None``.
+        """
+        self.ensure_one()
+        base_pricelist = rule.base_pricelist_id
+        product = self.product_id
+        if not base_pricelist or not product:
+            return None
+        try:
+            qty = self.product_uom_qty or 1.0
+            uom = self.product_uom
+            date = self._get_order_date()
+            _price, base_rule_id = base_pricelist._get_product_price_rule(
+                product.with_context(**self._get_product_price_context()),
+                qty,
+                uom=uom or False,
+                date=date,
+            )
+        except Exception:
+            return None
+        if not base_rule_id:
+            return None
+        if isinstance(base_rule_id, int):
+            base_rule = self.env["product.pricelist.item"].browse(base_rule_id)
+        else:
+            base_rule = base_rule_id
+        if base_rule.compute_price != "percentage":
+            return None
+        percent = base_rule.percent_price
+        if percent <= 0 or percent >= 100:
+            return None
+        try:
+            final_price = float(
+                self.with_company(self.company_id)._get_pricelist_price()
+            )
+        except Exception:
+            return None
+        if final_price <= 0:
+            return None
+        return round(final_price / (1.0 - percent / 100.0), 6)
 
     # ------------------------------------------------------------------
     # Cálculo del descuento equivalente
