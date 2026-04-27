@@ -42,6 +42,9 @@ class SaleOrderLine(models.Model):
         if not self._xtd_can_convert_rule_to_visible_discount(rule):
             return result
 
+        if not self._xtd_base_pricelist_rule_is_discount_based(rule):
+            return result
+
         base_price = self._xtd_get_base_price_from_source_pricelist(rule)
         if base_price is None or base_price <= 0:
             return result
@@ -86,6 +89,9 @@ class SaleOrderLine(models.Model):
             if not line._xtd_can_convert_rule_to_visible_discount(rule):
                 continue
 
+            if not line._xtd_base_pricelist_rule_is_discount_based(rule):
+                continue
+
             base_price = line._xtd_get_base_price_from_source_pricelist(rule)
             if base_price is None:
                 continue
@@ -125,6 +131,43 @@ class SaleOrderLine(models.Model):
             and not rule.price_min_margin
             and not rule.price_max_margin
         )
+
+    # ------------------------------------------------------------------
+    # Validación de la regla aplicable en la tarifa base
+    # ------------------------------------------------------------------
+
+    def _xtd_base_pricelist_rule_is_discount_based(self, rule):
+        """Verifica que la regla aplicable en ``base_pricelist_id`` NO sea precio fijo.
+
+        Cuando la tarifa base (p.ej. AGUA SOLAN) tiene un precio fijo para el
+        producto, el precio final es ese importe concreto, no un descuento
+        porcentual sobre el precio de lista.  En ese caso no tiene sentido
+        mostrar un descuento visible calculado contra ``list_price``.
+
+        Devuelve True si la regla de la tarifa base es ``percentage`` o
+        ``formula`` (es decir, basada en porcentaje), False si es ``fixed``
+        o si no se puede determinar.
+        """
+        self.ensure_one()
+        base_pricelist = rule.base_pricelist_id
+        product = self.product_id
+        if not base_pricelist or not product:
+            return False
+        try:
+            qty = self.product_uom_qty or 1.0
+            uom = self.product_uom
+            date = self._get_order_date()
+            _price, base_rule = base_pricelist._get_product_price_rule(
+                product.with_context(**self._get_product_price_context()),
+                qty,
+                uom=uom or False,
+                date=date,
+            )
+        except Exception:
+            return False
+        if not base_rule:
+            return False
+        return base_rule.compute_price in ("percentage", "formula")
 
     # ------------------------------------------------------------------
     # Obtención del precio base desde la tarifa origen

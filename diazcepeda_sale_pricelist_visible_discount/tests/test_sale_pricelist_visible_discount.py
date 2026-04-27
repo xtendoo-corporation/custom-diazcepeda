@@ -338,6 +338,94 @@ class TestSalePricelistVisibleDiscount(TransactionCase):
     # Caso 8: cadena real — tarifa intermedia con descuento porcentual
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Caso 9: tarifa base con precio fijo → NO debe mostrar descuento
+    # ------------------------------------------------------------------
+
+    def test_09_base_pricelist_fixed_price_no_discount(self):
+        """Tarifa base con precio fijo: no se debe calcular descuento visible.
+
+        Reproduce el caso INMACULADA → AGUA SOLAN donde AGUA SOLAN tiene
+        un precio FIJO para el producto (p.ej. [265] Cocacola a 7.69€).
+        El módulo NO debe comparar ese precio fijo contra list_price y
+        mostrar un descuento incorrecto.
+        Resultado esperado: price_unit = 7.69, discount = 0.
+        """
+        # Producto con list_price diferente al precio fijo en la tarifa base
+        product_fixed = self.env["product.product"].create(
+            {
+                "name": "Producto Precio Fijo En Tarifa Base",
+                "type": "consu",
+                "list_price": 12.00,
+                "uom_id": self.env.ref("uom.product_uom_unit").id,
+                "uom_po_id": self.env.ref("uom.product_uom_unit").id,
+            }
+        )
+        # Tarifa base (AGUA SOLAN) con precio fijo para el producto
+        pricelist_base_fixed = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Base Precio Fijo",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "0_product_variant",
+                            "product_id": product_fixed.id,
+                            "compute_price": "fixed",
+                            "fixed_price": 7.69,
+                        },
+                    )
+                ],
+            }
+        )
+        # Tarifa derivada (INMACULADA) que delega en la tarifa base via fórmula
+        pricelist_derived = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Derivada Sobre Precio Fijo",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "formula",
+                            "base": "pricelist",
+                            "base_pricelist_id": pricelist_base_fixed.id,
+                            "price_discount": 0.0,
+                        },
+                    )
+                ],
+            }
+        )
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.partner.id,
+                "pricelist_id": pricelist_derived.id,
+            }
+        )
+        line = self.env["sale.order.line"].create(
+            {
+                "order_id": order.id,
+                "product_id": product_fixed.id,
+                "product_uom_qty": 1.0,
+                "product_uom": self.env.ref("uom.product_uom_unit").id,
+            }
+        )
+        # Cuando la tarifa base usa precio fijo, NO debe haber descuento visible
+        self.assertEqual(
+            line.discount,
+            0.0,
+            msg="Con precio fijo en tarifa base no debe calcularse descuento visible",
+        )
+        self._assertAlmostEqual(
+            line.price_unit,
+            7.69,
+            msg="price_unit debe ser el precio fijo de la tarifa base (7.69)",
+        )
+
     def test_08_chained_pricelist_intermediate_discount(self):
         """Escenario real: tarifa A → tarifa B (65% off list_price).
 
