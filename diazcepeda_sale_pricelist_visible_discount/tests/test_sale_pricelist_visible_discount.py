@@ -334,6 +334,26 @@ class TestSalePricelistVisibleDiscount(TransactionCase):
             msg="Tarifa fija sin encadenamiento no debe generar discount visible",
         )
 
+    def test_07b_gross_tax_included_price_before_discount(self):
+        """El helper devuelve el precio unitario con IVA antes del descuento."""
+        tax = self.env["account.tax"].create(
+            {
+                "name": "IVA 21 Visible Discount",
+                "amount": 21.0,
+                "amount_type": "percent",
+                "type_tax_use": "sale",
+            }
+        )
+        self.product.taxes_id = [(6, 0, tax.ids)]
+        pricelist = self._make_chained_pricelist(discount_percent=10.0)
+        _order, line = self._make_sale_order(pricelist)
+
+        self.assertAlmostEqual(
+            line._get_price_unit_tax_included_before_discount(),
+            121.0,
+            places=2,
+        )
+
     # ------------------------------------------------------------------
     # Caso 8: cadena real — tarifa intermedia con descuento porcentual
     # ------------------------------------------------------------------

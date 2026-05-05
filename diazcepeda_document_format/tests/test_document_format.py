@@ -81,6 +81,19 @@ class TestDocumentFormat(TransactionCase):
                          "Las líneas de 'Gasto de gestión' deben filtrarse del informe")
         self.assertIn('Producto Normal Formato', product_names)
 
+
+    def test_sale_order_with_vat_report_uses_gross_unit_price_helper(self):
+        """La plantilla no debe dividir el total descontado entre la cantidad."""
+        template = self.env.ref(
+            'diazcepeda_document_format.report_saleorder_document_with_vat'
+        )
+
+        self.assertIn(
+            '_get_price_unit_tax_included_before_discount',
+            template.arch_db,
+        )
+        self.assertNotIn('line.price_total / line.product_uom_qty', template.arch_db)
+
     # ── account.move ───────────────────────────────────────────────────────────
 
     def test_invoice_is_gasto_gestion_true(self):

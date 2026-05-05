@@ -13,6 +13,7 @@
         "web",
         "sale",
         "stock",
+        "diazcepeda_sale_pricelist_visible_discount",
         "xtendoo_account_green_point",
         "stock_account",
     ],

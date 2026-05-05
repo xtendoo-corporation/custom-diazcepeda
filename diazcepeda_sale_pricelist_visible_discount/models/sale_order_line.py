@@ -23,6 +23,18 @@ _logger = logging.getLogger(__name__)
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
+    def _get_price_unit_tax_included_before_discount(self):
+        """Devuelve el precio unitario bruto con impuestos antes del descuento."""
+        self.ensure_one()
+        taxes_res = self.tax_id.compute_all(
+            self.price_unit,
+            currency=self.currency_id,
+            quantity=1.0,
+            product=self.product_id,
+            partner=self.order_id.partner_id,
+        )
+        return taxes_res["total_included"]
+
     # ------------------------------------------------------------------
     # Hook 1: precio base visible (price_unit)
     # ------------------------------------------------------------------
