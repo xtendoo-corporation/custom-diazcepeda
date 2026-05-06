@@ -330,6 +330,7 @@
 
     <template id="report_invoice_document_inherit_not_table_lot" inherit_id="stock_account.stock_account_report_invoice_document">
         <xpath expr="//table[@name='invoice_snln_table']" position="replace"></xpath>
+        <xpath expr="//p[@name='payment_communication']" position="replace"/>
     </template>
 
     <!-- Template propio para tax_totals con P. V. Total -->
