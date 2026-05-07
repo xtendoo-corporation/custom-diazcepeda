@@ -24,6 +24,9 @@
                         <button name="action_view_sale_orders" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="sale_order_count == 0">
                             <field name="sale_order_count" string="Pedidos" widget="statinfo"/>
                         </button>
+                        <button name="action_view_sale_order_lines" type="object" class="oe_stat_button" icon="fa-list" invisible="line_count == 0">
+                            <field name="line_count" string="Líneas" widget="statinfo"/>
+                        </button>
                         <button name="action_view_partners" type="object" class="oe_stat_button" icon="fa-users" invisible="partner_count == 0">
                             <field name="partner_count" string="Clientes" widget="statinfo"/>
                         </button>

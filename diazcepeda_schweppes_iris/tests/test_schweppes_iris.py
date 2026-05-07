@@ -177,4 +177,6 @@ class TestSchweppesIris(TransactionCase):
         self.assertGreater(record.sale_order_count, 0, "sale_order_count debe ser > 0")
         self.assertGreater(record.partner_count, 0, "partner_count debe ser > 0")
         self.assertGreater(record.line_count, 0, "line_count debe ser > 0")
+        self.assertEqual(record.line_count, len(record.sale_order_line_ids),
+                         "line_count debe coincidir con las líneas guardadas en el informe")
 

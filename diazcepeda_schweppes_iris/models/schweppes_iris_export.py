@@ -32,6 +32,7 @@ class SchweppesIrisExport(models.Model):
     line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, tracking=True)
 
     sale_order_ids = fields.Many2many('sale.order', string='Pedidos Incluidos', readonly=True)
+    sale_order_line_ids = fields.Many2many('sale.order.line', string='Líneas Incluidas', readonly=True)
     partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
 
     @api.model_create_multi
@@ -63,6 +64,7 @@ class SchweppesIrisExport(models.Model):
         lines = []
         partners_to_export = self.env['res.partner']
         line_count = 0
+        sale_order_lines_to_export = self.env['sale.order.line']
 
         now = datetime.now()
         date_tx = now.strftime('%Y%m%d')
@@ -89,6 +91,7 @@ class SchweppesIrisExport(models.Model):
             for line in order.order_line:
                 if line.display_type or not line.product_id or not line.product_id.schweppes_product_code:
                     continue
+                sale_order_lines_to_export |= line
                 prod_code = line.product_id.schweppes_product_code
                 qty = line.product_uom_qty
                 line_count += 1
@@ -137,11 +140,11 @@ class SchweppesIrisExport(models.Model):
         records_count = len(lines) + 1
         lines.append(iris_formatter.format_ft(records_count, len(sale_orders)))
         content = "\r\n".join(lines) + "\r\n"
-        return content, sale_orders, partners_to_export, line_count, now
+        return content, sale_orders, sale_order_lines_to_export, partners_to_export, line_count, now
 
     def action_generate_file(self):
         self.ensure_one()
-        content, sale_orders, partners_to_export, line_count, now = self._build_iris_content_from_sale_orders()
+        content, sale_orders, sale_order_lines_to_export, partners_to_export, line_count, now = self._build_iris_content_from_sale_orders()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
 
         self.write({
@@ -152,6 +155,7 @@ class SchweppesIrisExport(models.Model):
             'partner_count': len(partners_to_export),
             'line_count': line_count,
             'sale_order_ids': [(6, 0, sale_orders.ids)],
+            'sale_order_line_ids': [(6, 0, sale_order_lines_to_export.ids)],
             'partner_ids': [(6, 0, partners_to_export.ids)],
         })
 
@@ -212,7 +216,7 @@ class SchweppesIrisExport(models.Model):
                 rec.preview_file_data = False
                 rec.preview_file_name = False
                 continue
-            content, _, _, _, now = rec._build_iris_content_from_sale_orders()
+            content, _, _, _, _, now = rec._build_iris_content_from_sale_orders()
             rec.preview_file_data = base64.b64encode(content.encode('utf-8'))
             rec.preview_file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
 
@@ -224,6 +228,17 @@ class SchweppesIrisExport(models.Model):
             'res_model': 'sale.order',
             'view_mode': 'list,form',  # Odoo 18: 'tree' renombrado a 'list'
             'domain': [('id', 'in', self.sale_order_ids.ids)],
+            'context': {'create': False, 'delete': False},
+        }
+
+    def action_view_sale_order_lines(self):
+        self.ensure_one()
+        return {
+            'name': _('Líneas de pedido Schweppes'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.line',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.sale_order_line_ids.ids)],
             'context': {'create': False, 'delete': False},
         }
 
