@@ -21,8 +21,8 @@
                         <field name="company_id" groups="base.group_multi_company"/>
                     </group>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_view_invoices" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="invoice_count == 0">
-                            <field name="invoice_count" string="Facturas" widget="statinfo"/>
+                        <button name="action_view_sale_orders" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="sale_order_count == 0">
+                            <field name="sale_order_count" string="Pedidos" widget="statinfo"/>
                         </button>
                         <button name="action_view_partners" type="object" class="oe_stat_button" icon="fa-users" invisible="partner_count == 0">
                             <field name="partner_count" string="Clientes" widget="statinfo"/>
@@ -63,6 +63,6 @@
         <field name="view_mode">list,form</field>  <!-- Odoo 18: 'tree' → 'list' -->
     </record>
     <menuitem id="menu_schweppes_iris_root" name="Schweppes IRIS" parent="diazcepeda_administration.menu_diazcepeda_config" sequence="100"/>
-    <menuitem id="menu_schweppes_iris_export" name="Exportar líneas de factura de Sweppes Iris" parent="menu_schweppes_iris_root" action="action_schweppes_iris_export" sequence="10"/>
+    <menuitem id="menu_schweppes_iris_export" name="Exportar líneas de pedidos de Schweppes Iris" parent="menu_schweppes_iris_root" action="action_schweppes_iris_export" sequence="10"/>
 
 </odoo>

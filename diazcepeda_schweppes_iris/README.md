@@ -9,17 +9,17 @@ Este módulo permite a los distribuidores autorizados de Schweppes generar un fi
 ## Funcionamiento Técnico
 
 ### 1. Extracción de Datos
-El sistema se basa en las **Facturas de Cliente** (`account.move`) publicadas. 
-- Solo se procesan las facturas dentro del rango de fechas seleccionado por el usuario.
-- Solo se exportan las líneas de factura cuyos productos tengan definido un **Código Artículo Schweppes**.
+El sistema se basa en los **Pedidos de Venta** (`sale.order`) confirmados.
+- Solo se procesan los pedidos cuya fecha de pedido (`date_order`) está dentro del rango seleccionado por el usuario.
+- Solo se exportan las líneas de pedido cuyos productos tengan definido un **Código Artículo Schweppes**.
 
 ### 2. Estructura de Registros
 El fichero generado sigue la jerarquía de registros IRIS:
 - **CT**: Cabecera de transmisión (una por fichero).
-- **DICP**: Cabecera de pedido/factura (contiene cliente, ruta, fecha...).
+- **DICP**: Cabecera de pedido (contiene cliente, ruta, fecha...).
 - **DIDP**: Detalle del producto (unidades servidas, precio, código Schweppes...).
 - **DIDD**: Detalle de descuentos comerciales aplicados en línea.
-- **DIMC**: Maestro de datos de los clientes (dirección, NIF, tipo de establecimiento...). Se genera automáticamente para todos los clientes que aparecen en las facturas del periodo.
+- **DIMC**: Maestro de datos de los clientes (dirección, NIF, tipo de establecimiento...). Se genera automáticamente para todos los clientes que aparecen en los pedidos del periodo.
 - **FT**: Fin de transmisión con control de integridad (sumatorio de registros).
 
 ## Configuración y Mapeos

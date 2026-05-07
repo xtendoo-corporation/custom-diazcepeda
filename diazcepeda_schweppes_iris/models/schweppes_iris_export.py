@@ -1,7 +1,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
-from datetime import datetime
+from datetime import datetime, time
 from ..tools import iris_formatter
 
 class SchweppesIrisExport(models.Model):
@@ -27,11 +27,11 @@ class SchweppesIrisExport(models.Model):
     preview_file_name = fields.Char(string='Nombre Archivo Previsualización', readonly=True, compute='_compute_preview_file_data')
 
     # Summary fields for UX
-    invoice_count = fields.Integer(string='Nº Facturas', readonly=True, tracking=True)
+    sale_order_count = fields.Integer(string='Nº Pedidos', readonly=True, tracking=True)
     partner_count = fields.Integer(string='Nº Clientes', readonly=True, tracking=True)
     line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, tracking=True)
 
-    invoice_ids = fields.Many2many('account.move', string='Facturas Incluidas', readonly=True)
+    sale_order_ids = fields.Many2many('sale.order', string='Pedidos Incluidos', readonly=True)
     partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
 
     @api.model_create_multi
@@ -42,67 +42,69 @@ class SchweppesIrisExport(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code('schweppes.iris.export') or _('Nuevo')
         return super().create(vals_list)
 
-    def action_generate_file(self):
+    def _get_sale_order_domain(self):
         self.ensure_one()
-
-        # 1. Gather Invoices
-        domain = [
-            ('move_type', '=', 'out_invoice'),
-            ('state', '=', 'posted'),
-            ('invoice_date', '>=', self.date_from),
-            ('invoice_date', '<=', self.date_to),
+        date_from_dt = datetime.combine(self.date_from, time.min)
+        date_to_dt = datetime.combine(self.date_to, time.max).replace(microsecond=0)
+        return [
+            ('state', 'not in', ['draft', 'cancel']),
+            ('date_order', '>=', fields.Datetime.to_string(date_from_dt)),
+            ('date_order', '<=', fields.Datetime.to_string(date_to_dt)),
             ('company_id', '=', self.company_id.id),
-            ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
+            ('order_line.product_id.schweppes_product_code', '!=', False),
         ]
-        invoices = self.env['account.move'].search(domain)
 
-        if not invoices:
-            raise UserError(_("No se han encontrado facturas publicadas en este rango de fechas."))
+    def _build_iris_content_from_sale_orders(self):
+        self.ensure_one()
+        sale_orders = self.env['sale.order'].search(self._get_sale_order_domain())
+        if not sale_orders:
+            raise UserError(_("No se han encontrado pedidos confirmados en este rango de fechas."))
 
-        # 2. Process Lines & Master Data
         lines = []
-        orders_count = len(invoices)
         partners_to_export = self.env['res.partner']
+        line_count = 0
 
-        # CT (Header)
         now = datetime.now()
         date_tx = now.strftime('%Y%m%d')
         nn = "01"
         dist_code = self.company_id.schweppes_distributor_code or "1000026677"
         lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
 
-        for move in invoices:
-            partners_to_export |= move.partner_id
-            route = move.partner_id.schweppes_route or "56"
-            cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
-            date_inv = move.invoice_date.strftime('%Y%m%d')
+        for order in sale_orders:
+            partners_to_export |= order.partner_id
+            route = order.partner_id.schweppes_route or "56"
+            cust_code = order.partner_id.schweppes_customer_code or order.partner_id.ref or str(order.partner_id.id)
+            date_order = order.date_order.strftime('%Y%m%d') if order.date_order else date_tx
             payment_type = 'CO'
             lines.append(iris_formatter.format_dicp(
-                move.name[-10:],
+                (order.name or '')[-10:],
                 route,
                 cust_code,
-                date_inv,
-                date_inv,
+                date_order,
+                date_order,
                 payment_type,
-                move.ref or ""
+                order.client_order_ref or ""
             ))
-            for line in move.invoice_line_ids:
-                if not line.product_id or not line.product_id.schweppes_product_code:
+
+            for line in order.order_line:
+                if line.display_type or not line.product_id or not line.product_id.schweppes_product_code:
                     continue
                 prod_code = line.product_id.schweppes_product_code
+                qty = line.product_uom_qty
+                line_count += 1
                 lines.append(iris_formatter.format_didp(
-                    move.name[-10:],
+                    (order.name or '')[-10:],
                     prod_code,
-                    line.quantity,
+                    qty,
                     0,
-                    line.quantity,
+                    qty,
                     0,
                     line.price_unit
                 ))
                 if line.discount:
-                    disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
+                    disc_amount = (line.price_unit * qty) * (line.discount / 100.0)
                     lines.append(iris_formatter.format_didd(
-                        move.name[-10:],
+                        (order.name or '')[-10:],
                         prod_code,
                         'ES',
                         disc_amount
@@ -133,19 +135,23 @@ class SchweppesIrisExport(models.Model):
             ))
 
         records_count = len(lines) + 1
-        lines.append(iris_formatter.format_ft(records_count, orders_count))
-
+        lines.append(iris_formatter.format_ft(records_count, len(sale_orders)))
         content = "\r\n".join(lines) + "\r\n"
+        return content, sale_orders, partners_to_export, line_count, now
+
+    def action_generate_file(self):
+        self.ensure_one()
+        content, sale_orders, partners_to_export, line_count, now = self._build_iris_content_from_sale_orders()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
 
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
             'state': 'done',
-            'invoice_count': len(invoices),
+            'sale_order_count': len(sale_orders),
             'partner_count': len(partners_to_export),
-            'line_count': sum([len(i.invoice_line_ids.filtered(lambda l: l.product_id.schweppes_product_code)) for i in invoices]),
-            'invoice_ids': [(6, 0, invoices.ids)],
+            'line_count': line_count,
+            'sale_order_ids': [(6, 0, sale_orders.ids)],
             'partner_ids': [(6, 0, partners_to_export.ids)],
         })
 
@@ -171,7 +177,7 @@ class SchweppesIrisExport(models.Model):
 
         usuario = self.env.user.name
         self.message_post(
-            body=_("El usuario %s, ha generado/regenerado el fichero IRIS (%s facturas, %s clientes).") % (usuario, len(invoices), len(partners_to_export)),
+            body=_("El usuario %s, ha generado/regenerado el fichero IRIS (%s pedidos, %s clientes).") % (usuario, len(sale_orders), len(partners_to_export)),
             attachment_ids=[attachment.id]
         )
 
@@ -186,90 +192,8 @@ class SchweppesIrisExport(models.Model):
 
     def action_preview_file(self):
         self.ensure_one()
-        # Reutiliza la lógica de generación, pero solo genera el archivo y lo devuelve como descarga
-        # No cambia el estado ni crea adjuntos ni mensajes
-        domain = [
-            ('move_type', '=', 'out_invoice'),
-            ('state', '=', 'posted'),
-            ('invoice_date', '>=', self.date_from),
-            ('invoice_date', '<=', self.date_to),
-            ('company_id', '=', self.company_id.id),
-            ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
-        ]
-        invoices = self.env['account.move'].search(domain)
-        if not invoices:
-            raise UserError(_("No se han encontrado facturas publicadas en este rango de fechas."))
-        lines = []
-        orders_count = len(invoices)
-        partners_to_export = self.env['res.partner']
-        now = datetime.now()
-        date_tx = now.strftime('%Y%m%d')
-        nn = "01"
-        dist_code = self.company_id.schweppes_distributor_code or "1000026677"
-        lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
-        for move in invoices:
-            partners_to_export |= move.partner_id
-            route = move.partner_id.schweppes_route or "56"
-            cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
-            date_inv = move.invoice_date.strftime('%Y%m%d')
-            payment_type = 'CO'
-            lines.append(iris_formatter.format_dicp(
-                move.name[-10:],
-                route,
-                cust_code,
-                date_inv,
-                date_inv,
-                payment_type,
-                move.ref or ""
-            ))
-            for line in move.invoice_line_ids:
-                if not line.product_id or not line.product_id.schweppes_product_code:
-                    continue
-                prod_code = line.product_id.schweppes_product_code
-                lines.append(iris_formatter.format_didp(
-                    move.name[-10:],
-                    prod_code,
-                    line.quantity,
-                    0,
-                    line.quantity,
-                    0,
-                    line.price_unit
-                ))
-                if line.discount:
-                    disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
-                    lines.append(iris_formatter.format_didd(
-                        move.name[-10:],
-                        prod_code,
-                        'ES',
-                        disc_amount
-                    ))
-        for partner in partners_to_export:
-            lines.append(iris_formatter.format_dimc(
-                partner.schweppes_customer_code or partner.ref or str(partner.id),
-                partner.schweppes_route or "56",
-                partner.name,
-                partner.commercial_partner_id.name,
-                partner.street or "",
-                partner.vat or "",
-                partner.schweppes_delivery_type or "D",
-                "01",
-                "CO",
-                "AC",
-                "", "", "S", "SSSSSSS",
-                "", "", "", "N",
-                partner.email or "",
-                partner.city or "",
-                partner.state_id.name if partner.state_id else "",
-                partner.zip or "",
-                partner.phone or "",
-                "",
-                partner.schweppes_customer_code or "",
-                ""
-            ))
-        records_count = len(lines) + 1
-        lines.append(iris_formatter.format_ft(records_count, orders_count))
-        content = "\r\n".join(lines) + "\r\n"
-        file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
+        # Reutiliza la lógica de generación, pero solo devuelve la descarga.
+        self._build_iris_content_from_sale_orders()
         # Devuelve una acción de descarga directa
         return {
             'type': 'ir.actions.act_url',
@@ -279,100 +203,27 @@ class SchweppesIrisExport(models.Model):
 
     def _compute_preview_file_data(self):
         for rec in self:
-            domain = [
-                ('move_type', '=', 'out_invoice'),
-                ('state', '=', 'posted'),
-                ('invoice_date', '>=', rec.date_from),
-                ('invoice_date', '<=', rec.date_to),
-                ('company_id', '=', rec.company_id.id),
-                ('invoice_line_ids.product_id.schweppes_product_code', '!=', False)
-            ]
-            invoices = rec.env['account.move'].search(domain)
-            if not invoices:
+            if not rec.date_from or not rec.date_to or not rec.company_id:
                 rec.preview_file_data = False
                 rec.preview_file_name = False
                 continue
-            lines = []
-            orders_count = len(invoices)
-            partners_to_export = rec.env['res.partner']
-            now = datetime.now()
-            date_tx = now.strftime('%Y%m%d')
-            nn = "01"
-            dist_code = rec.company_id.schweppes_distributor_code or "1000026677"
-            lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
-            for move in invoices:
-                partners_to_export |= move.partner_id
-                route = move.partner_id.schweppes_route or "56"
-                cust_code = move.partner_id.schweppes_customer_code or move.partner_id.ref or str(move.partner_id.id)
-                date_inv = move.invoice_date.strftime('%Y%m%d')
-                payment_type = 'CO'
-                lines.append(iris_formatter.format_dicp(
-                    move.name[-10:],
-                    route,
-                    cust_code,
-                    date_inv,
-                    date_inv,
-                    payment_type,
-                    move.ref or ""
-                ))
-                for line in move.invoice_line_ids:
-                    if not line.product_id or not line.product_id.schweppes_product_code:
-                        continue
-                    prod_code = line.product_id.schweppes_product_code
-                    lines.append(iris_formatter.format_didp(
-                        move.name[-10:],
-                        prod_code,
-                        line.quantity,
-                        0,
-                        line.quantity,
-                        0,
-                        line.price_unit
-                    ))
-                    if line.discount:
-                        disc_amount = (line.price_unit * line.quantity) * (line.discount / 100.0)
-                        lines.append(iris_formatter.format_didd(
-                            move.name[-10:],
-                            prod_code,
-                            'ES',
-                            disc_amount
-                        ))
-            for partner in partners_to_export:
-                lines.append(iris_formatter.format_dimc(
-                    partner.schweppes_customer_code or partner.ref or str(partner.id),
-                    partner.schweppes_route or "56",
-                    partner.name,
-                    partner.commercial_partner_id.name,
-                    partner.street or "",
-                    partner.vat or "",
-                    partner.schweppes_delivery_type or "D",
-                    "01",
-                    "CO",
-                    "AC",
-                    "", "", "S", "SSSSSSS",
-                    "", "", "", "N",
-                    partner.email or "",
-                    partner.city or "",
-                    partner.state_id.name if partner.state_id else "",
-                    partner.zip or "",
-                    partner.phone or "",
-                    "",
-                    partner.schweppes_customer_code or "",
-                    ""
-                ))
-            records_count = len(lines) + 1
-            lines.append(iris_formatter.format_ft(records_count, orders_count))
-            content = "\r\n".join(lines) + "\r\n"
+            sale_orders = rec.env['sale.order'].search(rec._get_sale_order_domain())
+            if not sale_orders:
+                rec.preview_file_data = False
+                rec.preview_file_name = False
+                continue
+            content, _, _, _, now = rec._build_iris_content_from_sale_orders()
             rec.preview_file_data = base64.b64encode(content.encode('utf-8'))
             rec.preview_file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
 
-    def action_view_invoices(self):
+    def action_view_sale_orders(self):
         self.ensure_one()
         return {
-            'name': _('Facturas Schweppes'),
+            'name': _('Pedidos Schweppes'),
             'type': 'ir.actions.act_window',
-            'res_model': 'account.move',
+            'res_model': 'sale.order',
             'view_mode': 'list,form',  # Odoo 18: 'tree' renombrado a 'list'
-            'domain': [('id', 'in', self.invoice_ids.ids)],
+            'domain': [('id', 'in', self.sale_order_ids.ids)],
             'context': {'create': False, 'delete': False},
         }
 

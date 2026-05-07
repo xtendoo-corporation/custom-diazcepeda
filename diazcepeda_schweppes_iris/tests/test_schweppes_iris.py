@@ -32,20 +32,20 @@ class TestSchweppesIris(TransactionCase):
             'taxes_id': [],
         })
 
-    def _create_posted_invoice(self, date='2024-07-10'):
-        move = self.env['account.move'].create({
-            'move_type': 'out_invoice',
+    def _create_confirmed_sale_order(self, date='2024-07-10 10:00:00'):
+        order = self.env['sale.order'].create({
             'partner_id': self.partner.id,
-            'invoice_date': date,
+            'date_order': date,
             'company_id': self.company.id,
-            'invoice_line_ids': [(0, 0, {
+            'order_line': [(0, 0, {
                 'product_id': self.product.id,
-                'quantity': 120,
+                'name': self.product.name,
+                'product_uom_qty': 120,
                 'price_unit': 0.90,
             })],
         })
-        move.action_post()
-        return move
+        order.action_confirm()
+        return order
 
     # ── Campos personalizados ─────────────────────────────────────────────────
 
@@ -95,20 +95,20 @@ class TestSchweppesIris(TransactionCase):
 
     # ── Generación del fichero ────────────────────────────────────────────────
 
-    def test_generate_file_raises_error_without_invoices(self):
-        """action_generate_file lanza UserError si no hay facturas en el rango"""
+    def test_generate_file_raises_error_without_sale_orders(self):
+        """action_generate_file lanza UserError si no hay pedidos confirmados en el rango"""
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2000-01-01',
             'date_to': '2000-01-31',
             'company_id': self.company.id,
         })
         with self.assertRaises(UserError,
-                               msg="Debe lanzar UserError cuando no hay facturas"):
+                               msg="Debe lanzar UserError cuando no hay pedidos"):
             record.action_generate_file()
 
     def test_generate_file_sets_state_done(self):
         """Tras generar el fichero, el estado cambia a 'done'"""
-        self._create_posted_invoice()
+        self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
@@ -119,7 +119,7 @@ class TestSchweppesIris(TransactionCase):
 
     def test_generate_file_content_structure(self):
         """El fichero IRIS tiene la estructura correcta: CT al inicio y FT al final"""
-        self._create_posted_invoice()
+        self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
@@ -135,8 +135,8 @@ class TestSchweppesIris(TransactionCase):
                         f"La última línea debe empezar por 'FT': {lines[-1]}")
 
     def test_generate_file_contains_dicp_and_didp(self):
-        """El fichero contiene registros DICP (cabecera factura) y DIDP (línea producto)"""
-        self._create_posted_invoice()
+        """El fichero contiene registros DICP (cabecera pedido) y DIDP (línea producto)"""
+        self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
@@ -150,7 +150,7 @@ class TestSchweppesIris(TransactionCase):
 
     def test_generate_file_creates_attachment(self):
         """La generación crea un adjunto .txt en el registro"""
-        self._create_posted_invoice()
+        self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
@@ -166,15 +166,15 @@ class TestSchweppesIris(TransactionCase):
         self.assertTrue(record.file_name.endswith('.txt'))
 
     def test_summary_counters_updated(self):
-        """Los contadores de facturas, clientes y líneas se actualizan correctamente"""
-        self._create_posted_invoice()
+        """Los contadores de pedidos, clientes y líneas se actualizan correctamente"""
+        self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
         record.action_generate_file()
-        self.assertGreater(record.invoice_count, 0, "invoice_count debe ser > 0")
+        self.assertGreater(record.sale_order_count, 0, "sale_order_count debe ser > 0")
         self.assertGreater(record.partner_count, 0, "partner_count debe ser > 0")
         self.assertGreater(record.line_count, 0, "line_count debe ser > 0")
 
