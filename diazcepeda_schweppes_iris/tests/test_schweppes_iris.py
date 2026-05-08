@@ -45,6 +45,7 @@ class TestSchweppesIris(TransactionCase):
             })],
         })
         order.action_confirm()
+        order.write({'date_order': date})
         return order
 
     # ── Campos personalizados ─────────────────────────────────────────────────
@@ -179,4 +180,17 @@ class TestSchweppesIris(TransactionCase):
         self.assertGreater(record.line_count, 0, "line_count debe ser > 0")
         self.assertEqual(record.line_count, len(record.sale_order_line_ids),
                          "line_count debe coincidir con las líneas guardadas en el informe")
+
+    def test_sale_order_lines_action_uses_custom_list_view(self):
+        """El smart button de líneas usa la vista lista personalizada con descuento."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_generate_file()
+        action = record.action_view_sale_order_lines()
+        custom_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_sale_order_line_tree')
+        self.assertEqual(action['views'][0], (custom_view.id, 'list'))
 

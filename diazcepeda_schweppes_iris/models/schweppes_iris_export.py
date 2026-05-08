@@ -233,7 +233,9 @@ class SchweppesIrisExport(models.Model):
 
     def action_view_sale_order_lines(self):
         self.ensure_one()
-        return {
+        list_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_sale_order_line_tree', raise_if_not_found=False)
+        form_view = self.env.ref('sale.sale_order_line_view_form_readonly', raise_if_not_found=False)
+        action = {
             'name': _('Líneas de pedido Schweppes'),
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order.line',
@@ -241,6 +243,13 @@ class SchweppesIrisExport(models.Model):
             'domain': [('id', 'in', self.sale_order_line_ids.ids)],
             'context': {'create': False, 'delete': False},
         }
+        if list_view or form_view:
+            action['views'] = []
+            if list_view:
+                action['views'].append((list_view.id, 'list'))
+            if form_view:
+                action['views'].append((form_view.id, 'form'))
+        return action
 
     def action_view_partners(self):
         self.ensure_one()
