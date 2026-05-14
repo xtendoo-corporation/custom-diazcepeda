@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_schweppes_iris_export,schweppes.iris.export,model_schweppes_iris_export,base.group_user,1,1,1,1
+access_schweppes_export_line,schweppes.export.line,model_schweppes_export_line,base.group_user,1,1,1,1

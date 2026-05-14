@@ -115,6 +115,7 @@ class TestSchweppesIris(TransactionCase):
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+        record.action_load_export_lines()
         record.action_generate_file()
         self.assertEqual(record.state, 'done')
 
@@ -126,6 +127,7 @@ class TestSchweppesIris(TransactionCase):
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+        record.action_load_export_lines()
         record.action_generate_file()
         self.assertTrue(record.file_data, "file_data debe contener datos binarios")
         content = base64.b64decode(record.file_data).decode('utf-8')
@@ -143,6 +145,7 @@ class TestSchweppesIris(TransactionCase):
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+        record.action_load_export_lines()
         record.action_generate_file()
         content = base64.b64decode(record.file_data).decode('utf-8')
         self.assertIn('DICP', content, "Debe contener registros DICP (cabecera de pedido)")
@@ -157,6 +160,7 @@ class TestSchweppesIris(TransactionCase):
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+        record.action_load_export_lines()
         record.action_generate_file()
         attachment = self.env['ir.attachment'].search([
             ('res_model', '=', 'schweppes.iris.export'),
@@ -174,23 +178,121 @@ class TestSchweppesIris(TransactionCase):
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+        record.action_load_export_lines()
         record.action_generate_file()
         self.assertGreater(record.sale_order_count, 0, "sale_order_count debe ser > 0")
         self.assertGreater(record.partner_count, 0, "partner_count debe ser > 0")
         self.assertGreater(record.line_count, 0, "line_count debe ser > 0")
-        self.assertEqual(record.line_count, len(record.sale_order_line_ids),
-                         "line_count debe coincidir con las líneas guardadas en el informe")
+        self.assertEqual(record.line_count, len(record.export_line_ids),
+                         "line_count debe coincidir con las líneas guardadas en la tabla snapshot")
 
-    def test_sale_order_lines_action_uses_custom_list_view(self):
-        """El smart button de líneas usa la vista lista personalizada con descuento."""
+    def test_load_export_lines_creates_snapshot_table_lines(self):
+        """Las líneas origen se copian a la tabla schweppes_export_lines."""
+        order = self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+
+        record.action_load_export_lines()
+
+        self.assertEqual(len(record.export_line_ids), 1)
+        self.assertEqual(record.export_line_ids.sale_order_id, order)
+        self.assertEqual(record.export_line_ids.partner_id, self.partner)
+        self.assertEqual(record.export_line_ids.product_id, self.product)
+
+    def test_generate_file_uses_snapshot_lines_not_live_sale_lines(self):
+        """La exportación debe salir de la tabla nueva editable."""
         self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
             'date_to': '2024-07-31',
             'company_id': self.company.id,
         })
+
+        record.action_load_export_lines()
+        export_line = record.export_line_ids[0]
+        export_line.write({
+            'product_uom_qty': 99,
+            'discount': 10.0,
+        })
+
         record.action_generate_file()
+
+        content = base64.b64decode(record.file_data).decode('utf-8')
+        didp_lines = [line for line in content.split('\r\n') if line.startswith('DIDP')]
+        didd_lines = [line for line in content.split('\r\n') if line.startswith('DIDD')]
+
+        self.assertTrue(any('00000099' in line for line in didp_lines))
+        self.assertTrue(didd_lines, "Debe generarse DIDD al editar descuento en la tabla snapshot")
+
+    def test_generate_file_uses_edited_partner_from_snapshot(self):
+        """Si se cambia el cliente en la snapshot, el fichero debe usar ese cliente."""
+        new_partner = self.env['res.partner'].create({
+            'name': 'Cliente Editado Snapshot',
+            'schweppes_customer_code': 'CUST-EDIT',
+            'schweppes_route': '77',
+            'schweppes_delivery_type': 'D',
+            'street': 'Calle Nueva 2',
+            'city': 'Sevilla',
+            'zip': '41001',
+            'email': 'editado@schweppes.es',
+            'phone': '954000111',
+        })
+
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+
+        record.action_load_export_lines()
+        record.export_line_ids[0].write({'partner_id': new_partner.id})
+
+        record.action_generate_file()
+        content = base64.b64decode(record.file_data).decode('utf-8')
+
+        self.assertIn('CUST-EDIT', content, "Debe usarse el cliente editado en la tabla snapshot")
+        self.assertNotIn('CUST-001', content, "No debe usarse el cliente original del pedido si se cambió en snapshot")
+
+    def test_preview_uses_edited_partner_from_snapshot(self):
+        """La previsualización también debe reflejar el cliente editado en snapshot."""
+        new_partner = self.env['res.partner'].create({
+            'name': 'Cliente Preview Snapshot',
+            'schweppes_customer_code': 'CUST-PREVIEW',
+            'schweppes_route': '88',
+            'schweppes_delivery_type': 'D',
+        })
+
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+
+        record.action_load_export_lines()
+        record.export_line_ids[0].write({'partner_id': new_partner.id})
+        record.invalidate_recordset(['preview_file_data', 'preview_file_name'])
+
+        preview_content = base64.b64decode(record.preview_file_data).decode('utf-8')
+
+        self.assertIn('CUST-PREVIEW', preview_content)
+        self.assertNotIn('CUST-001', preview_content)
+
+    def test_sale_order_lines_action_uses_custom_list_view(self):
+        """El smart button de líneas abre la tabla snapshot de exportación."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
         action = record.action_view_sale_order_lines()
-        custom_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_sale_order_line_tree')
+        custom_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_export_line_tree')
+        self.assertEqual(action['res_model'], 'schweppes.export.line')
         self.assertEqual(action['views'][0], (custom_view.id, 'list'))
 

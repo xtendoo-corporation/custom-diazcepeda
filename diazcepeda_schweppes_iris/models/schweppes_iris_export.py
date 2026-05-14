@@ -26,14 +26,20 @@ class SchweppesIrisExport(models.Model):
     preview_file_data = fields.Binary(string='Archivo TXT Previsualización', readonly=True, compute='_compute_preview_file_data')
     preview_file_name = fields.Char(string='Nombre Archivo Previsualización', readonly=True, compute='_compute_preview_file_data')
 
-    # Summary fields for UX
-    sale_order_count = fields.Integer(string='Nº Pedidos', readonly=True, tracking=True)
-    partner_count = fields.Integer(string='Nº Clientes', readonly=True, tracking=True)
-    line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, tracking=True)
+    export_line_ids = fields.One2many(
+        'schweppes.export.line',
+        'export_id',
+        string='Líneas a exportar',
+        copy=False,
+    )
 
-    sale_order_ids = fields.Many2many('sale.order', string='Pedidos Incluidos', readonly=True)
-    sale_order_line_ids = fields.Many2many('sale.order.line', string='Líneas Incluidas', readonly=True)
-    partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True)
+    # Summary fields for UX
+    sale_order_count = fields.Integer(string='Nº Pedidos', readonly=True, compute='_compute_summary_counts')
+    partner_count = fields.Integer(string='Nº Clientes', readonly=True, compute='_compute_summary_counts')
+    line_count = fields.Integer(string='Nº Líneas Venta', readonly=True, compute='_compute_summary_counts')
+
+    sale_order_ids = fields.Many2many('sale.order', string='Pedidos Incluidos', readonly=True, compute='_compute_related_records')
+    partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True, compute='_compute_related_records')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -43,28 +49,115 @@ class SchweppesIrisExport(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code('schweppes.iris.export') or _('Nuevo')
         return super().create(vals_list)
 
-    def _get_sale_order_domain(self):
+    @api.depends('export_line_ids', 'export_line_ids.sale_order_id', 'export_line_ids.partner_id')
+    def _compute_summary_counts(self):
+        for rec in self:
+            rec.line_count = len(rec.export_line_ids)
+            rec.sale_order_count = len(rec.export_line_ids.mapped('sale_order_id'))
+            rec.partner_count = len(rec.export_line_ids.mapped('partner_id'))
+
+    @api.depends('export_line_ids.sale_order_id', 'export_line_ids.partner_id')
+    def _compute_related_records(self):
+        for rec in self:
+            rec.sale_order_ids = rec.export_line_ids.mapped('sale_order_id')
+            rec.partner_ids = rec.export_line_ids.mapped('partner_id')
+
+    def _get_sale_order_line_domain(self):
         self.ensure_one()
         date_from_dt = datetime.combine(self.date_from, time.min)
         date_to_dt = datetime.combine(self.date_to, time.max).replace(microsecond=0)
         return [
-            ('state', 'not in', ['draft', 'cancel']),
-            ('date_order', '>=', fields.Datetime.to_string(date_from_dt)),
-            ('date_order', '<=', fields.Datetime.to_string(date_to_dt)),
-            ('company_id', '=', self.company_id.id),
-            ('order_line.product_id.schweppes_product_code', '!=', False),
+            ('order_id.state', 'not in', ['draft', 'cancel']),
+            ('order_id.date_order', '>=', fields.Datetime.to_string(date_from_dt)),
+            ('order_id.date_order', '<=', fields.Datetime.to_string(date_to_dt)),
+            ('order_id.company_id', '=', self.company_id.id),
+            ('display_type', '=', False),
+            ('product_id.schweppes_product_code', '!=', False),
         ]
 
-    def _build_iris_content_from_sale_orders(self):
+    def _prepare_export_line_vals(self, sale_line, sequence):
+        return {
+            'sequence': sequence,
+            'sale_order_id': sale_line.order_id.id,
+            'sale_order_line_id': sale_line.id,
+            'sale_order_name': sale_line.order_id.name or '',
+            'client_order_ref': sale_line.order_id.client_order_ref or '',
+            'date_order': sale_line.order_id.date_order,
+            'partner_id': sale_line.order_id.partner_id.id,
+            'product_id': sale_line.product_id.id,
+            'name': sale_line.name,
+            'currency_id': sale_line.order_id.currency_id.id,
+            'product_uom_qty': sale_line.product_uom_qty,
+            'price_unit': sale_line.price_unit,
+            'discount': sale_line.discount,
+            'schweppes_product_code': sale_line.product_id.schweppes_product_code or '',
+        }
+
+    def _reload_export_lines(self):
         self.ensure_one()
-        sale_orders = self.env['sale.order'].search(self._get_sale_order_domain())
-        if not sale_orders:
-            raise UserError(_("No se han encontrado pedidos confirmados en este rango de fechas."))
+        if not self.date_from or not self.date_to or not self.company_id:
+            raise UserError(_("Debes indicar fecha desde, fecha hasta y compañía antes de cargar líneas."))
+
+        sale_lines = self.env['sale.order.line'].search(
+            self._get_sale_order_line_domain(),
+            order='order_id, sequence, id',
+        )
+        if not sale_lines:
+            raise UserError(_("No se han encontrado líneas de pedidos confirmados en este rango de fechas."))
+
+        commands = [(5, 0, 0)]
+        sequence = 10
+        for sale_line in sale_lines:
+            commands.append((0, 0, self._prepare_export_line_vals(sale_line, sequence)))
+            sequence += 10
+
+        self.write({'export_line_ids': commands})
+        return self.export_line_ids
+
+    def action_load_export_lines(self):
+        self.ensure_one()
+        self._reload_export_lines()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def _get_lines_for_export(self):
+        self.ensure_one()
+        if not self.export_line_ids:
+            raise UserError(_("Primero debes cargar las líneas a exportar."))
+
+        export_lines = self.export_line_ids.sorted(
+            lambda line: (
+                line.date_order or datetime.min,
+                line.sale_order_name or '',
+                line.sequence,
+                line.id,
+            )
+        )
+
+        invalid_lines = export_lines.filtered(
+            lambda line: (
+                not line.sale_order_id
+                or not line.partner_id
+                or not line.product_id
+                or not line.schweppes_product_code
+            )
+        )
+        if invalid_lines:
+            raise UserError(_("Todas las líneas a exportar deben tener pedido, cliente, producto y código Schweppes."))
+
+        return export_lines
+
+    def _build_iris_content_from_export_lines(self):
+        self.ensure_one()
+        export_lines = self._get_lines_for_export()
 
         lines = []
         partners_to_export = self.env['res.partner']
-        line_count = 0
-        sale_order_lines_to_export = self.env['sale.order.line']
 
         now = datetime.now()
         date_tx = now.strftime('%Y%m%d')
@@ -72,42 +165,55 @@ class SchweppesIrisExport(models.Model):
         dist_code = self.company_id.schweppes_distributor_code or "1000026677"
         lines.append(iris_formatter.format_ct(date_tx, 'G', nn, dist_code))
 
-        for order in sale_orders:
-            partners_to_export |= order.partner_id
-            route = order.partner_id.schweppes_route or "56"
-            cust_code = order.partner_id.schweppes_customer_code or order.partner_id.ref or str(order.partner_id.id)
-            date_order = order.date_order.strftime('%Y%m%d') if order.date_order else date_tx
+        grouped_lines = {}
+        for export_line in export_lines:
+            key = (
+                export_line.sale_order_name or '',
+                export_line.client_order_ref or '',
+                export_line.date_order or datetime.min,
+                export_line.partner_id.id,
+            )
+            grouped_lines.setdefault(key, self.env['schweppes.export.line'])
+            grouped_lines[key] |= export_line
+
+        header_count = 0
+
+        for key in sorted(grouped_lines.keys(), key=lambda item: (item[2] or datetime.min, item[0], item[3])):
+            order_lines = grouped_lines[key].sorted(lambda line: (line.sequence, line.id))
+            first_line = order_lines[0]
+            partner = first_line.partner_id
+            partners_to_export |= partner
+            header_count += 1
+            route = partner.schweppes_route or "56"
+            cust_code = partner.schweppes_customer_code or partner.ref or str(partner.id)
+            date_order = first_line.date_order.strftime('%Y%m%d') if first_line.date_order else date_tx
             payment_type = 'CO'
             lines.append(iris_formatter.format_dicp(
-                (order.name or '')[-10:],
+                (first_line.sale_order_name or '')[-10:],
                 route,
                 cust_code,
                 date_order,
                 date_order,
                 payment_type,
-                order.client_order_ref or ""
+                first_line.client_order_ref or ""
             ))
 
-            for line in order.order_line:
-                if line.display_type or not line.product_id or not line.product_id.schweppes_product_code:
-                    continue
-                sale_order_lines_to_export |= line
-                prod_code = line.product_id.schweppes_product_code
-                qty = line.product_uom_qty
-                line_count += 1
+            for export_line in order_lines:
+                prod_code = export_line.schweppes_product_code
+                qty = export_line.product_uom_qty
                 lines.append(iris_formatter.format_didp(
-                    (order.name or '')[-10:],
+                    (first_line.sale_order_name or '')[-10:],
                     prod_code,
                     qty,
                     0,
                     qty,
                     0,
-                    line.price_unit
+                    export_line.price_unit
                 ))
-                if line.discount:
-                    disc_amount = (line.price_unit * qty) * (line.discount / 100.0)
+                if export_line.discount:
+                    disc_amount = (export_line.price_unit * qty) * (export_line.discount / 100.0)
                     lines.append(iris_formatter.format_didd(
-                        (order.name or '')[-10:],
+                        (first_line.sale_order_name or '')[-10:],
                         prod_code,
                         'ES',
                         disc_amount
@@ -138,25 +244,19 @@ class SchweppesIrisExport(models.Model):
             ))
 
         records_count = len(lines) + 1
-        lines.append(iris_formatter.format_ft(records_count, len(sale_orders)))
+        lines.append(iris_formatter.format_ft(records_count, header_count))
         content = "\r\n".join(lines) + "\r\n"
-        return content, sale_orders, sale_order_lines_to_export, partners_to_export, line_count, now
+        return content, header_count, partners_to_export, now
 
     def action_generate_file(self):
         self.ensure_one()
-        content, sale_orders, sale_order_lines_to_export, partners_to_export, line_count, now = self._build_iris_content_from_sale_orders()
+        content, header_count, partners_to_export, now = self._build_iris_content_from_export_lines()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
 
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
             'state': 'done',
-            'sale_order_count': len(sale_orders),
-            'partner_count': len(partners_to_export),
-            'line_count': line_count,
-            'sale_order_ids': [(6, 0, sale_orders.ids)],
-            'sale_order_line_ids': [(6, 0, sale_order_lines_to_export.ids)],
-            'partner_ids': [(6, 0, partners_to_export.ids)],
         })
 
         # Eliminar adjuntos anteriores vinculados a este registro
@@ -181,7 +281,7 @@ class SchweppesIrisExport(models.Model):
 
         usuario = self.env.user.name
         self.message_post(
-            body=_("El usuario %s, ha generado/regenerado el fichero IRIS (%s pedidos, %s clientes).") % (usuario, len(sale_orders), len(partners_to_export)),
+            body=_("El usuario %s ha generado/regenerado el fichero IRIS (%s cabeceras, %s clientes, %s líneas).") % (usuario, header_count, len(partners_to_export), len(self.export_line_ids)),
             attachment_ids=[attachment.id]
         )
 
@@ -196,27 +296,41 @@ class SchweppesIrisExport(models.Model):
 
     def action_preview_file(self):
         self.ensure_one()
-        # Reutiliza la lógica de generación, pero solo devuelve la descarga.
-        self._build_iris_content_from_sale_orders()
-        # Devuelve una acción de descarga directa
+        self._build_iris_content_from_export_lines()
         return {
             'type': 'ir.actions.act_url',
             'url': f"/web/content/?model=schweppes.iris.export&id={self.id}&field=preview_file_data&filename_field=preview_file_name&download=true",
             'target': 'self',
         }
 
+    @api.depends(
+        'date_from',
+        'date_to',
+        'company_id',
+        'export_line_ids',
+        'export_line_ids.partner_id',
+        'export_line_ids.sale_order_id',
+        'export_line_ids.sale_order_name',
+        'export_line_ids.client_order_ref',
+        'export_line_ids.date_order',
+        'export_line_ids.product_id',
+        'export_line_ids.product_uom_qty',
+        'export_line_ids.price_unit',
+        'export_line_ids.discount',
+        'export_line_ids.schweppes_product_code',
+    )
     def _compute_preview_file_data(self):
         for rec in self:
-            if not rec.date_from or not rec.date_to or not rec.company_id:
+            if not rec.date_from or not rec.date_to or not rec.company_id or not rec.export_line_ids:
                 rec.preview_file_data = False
                 rec.preview_file_name = False
                 continue
-            sale_orders = rec.env['sale.order'].search(rec._get_sale_order_domain())
-            if not sale_orders:
+            try:
+                content, _, _, now = rec._build_iris_content_from_export_lines()
+            except UserError:
                 rec.preview_file_data = False
                 rec.preview_file_name = False
                 continue
-            content, _, _, _, _, now = rec._build_iris_content_from_sale_orders()
             rec.preview_file_data = base64.b64encode(content.encode('utf-8'))
             rec.preview_file_name = f"{now.strftime('%d%m%Y')}_PREVIEW_SCHW_IRIS_VENTAS.txt"
 
@@ -233,15 +347,15 @@ class SchweppesIrisExport(models.Model):
 
     def action_view_sale_order_lines(self):
         self.ensure_one()
-        list_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_sale_order_line_tree', raise_if_not_found=False)
-        form_view = self.env.ref('sale.sale_order_line_view_form_readonly', raise_if_not_found=False)
+        list_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_export_line_tree', raise_if_not_found=False)
+        form_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_export_line_form', raise_if_not_found=False)
         action = {
-            'name': _('Líneas de pedido Schweppes'),
+            'name': _('Líneas de exportación Schweppes'),
             'type': 'ir.actions.act_window',
-            'res_model': 'sale.order.line',
+            'res_model': 'schweppes.export.line',
             'view_mode': 'list,form',
-            'domain': [('id', 'in', self.sale_order_line_ids.ids)],
-            'context': {'create': False, 'delete': False},
+            'domain': [('export_id', '=', self.id)],
+            'context': {'default_export_id': self.id},
         }
         if list_view or form_view:
             action['views'] = []
@@ -258,6 +372,6 @@ class SchweppesIrisExport(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'res.partner',
             'view_mode': 'kanban,list,form',  # Odoo 18: 'tree' renombrado a 'list'
-            'domain': [('id', 'in', self.partner_ids.ids)],
+            'domain': [('id', 'in', self.export_line_ids.mapped('partner_id').ids)],
             'context': {'create': False, 'delete': False},
         }

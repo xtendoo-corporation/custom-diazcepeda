@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <form string="Exportar Schweppes IRIS">
                 <header>
+                    <button name="action_load_export_lines" string="Cargar / Recargar líneas" type="object" class="btn-secondary" invisible="state == 'done'"/>
                     <button name="action_generate_file" string="Generar Fichero" type="object" class="oe_highlight" invisible="state == 'done'"/>
                     <button name="action_generate_file" string="Regenerar Fichero" type="object" invisible="state == 'draft'"/>
                     <button name="action_preview_file" string="Previsualizar" type="object" class="btn-primary"/>
@@ -18,7 +19,7 @@
                     <group>
                         <field name="date_from" readonly="state == 'done'"/>
                         <field name="date_to" readonly="state == 'done'"/>
-                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="company_id" groups="base.group_multi_company" readonly="state == 'done'"/>
                     </group>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_sale_orders" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="sale_order_count == 0">
@@ -31,6 +32,23 @@
                             <field name="partner_count" string="Clientes" widget="statinfo"/>
                         </button>
                     </div>
+                    <group string="Líneas a exportar">
+                        <field name="export_line_ids" nolabel="1" readonly="state == 'done'">
+                            <list editable="bottom" string="Líneas a exportar">
+                                <field name="sequence" widget="handle"/>
+                                <field name="sale_order_id"/>
+                                <field name="sale_order_line_id" optional="hide"/>
+                                <field name="partner_id"/>
+                                <field name="product_id"/>
+                                <field name="name" optional="show"/>
+                                <field name="product_uom_qty"/>
+                                <field name="price_unit"/>
+                                <field name="discount"/>
+                                <field name="discount_amount" readonly="1"/>
+                                <field name="schweppes_product_code" readonly="1"/>
+                            </list>
+                        </field>
+                    </group>
                     <notebook>
                         <page string="Archivo generado">
                             <group>
@@ -54,6 +72,9 @@
                 <field name="name"/>
                 <field name="date_from"/>
                 <field name="date_to"/>
+                <field name="sale_order_count"/>
+                <field name="line_count"/>
+                <field name="partner_count"/>
                 <field name="state"/>
                 <field name="create_date"/>
             </list>
@@ -66,24 +87,45 @@
         <field name="view_mode">list,form</field>  <!-- Odoo 18: 'tree' → 'list' -->
     </record>
 
-    <record id="view_schweppes_sale_order_line_tree" model="ir.ui.view">
-        <field name="name">schweppes.sale.order.line.list</field>
-        <field name="model">sale.order.line</field>
+    <record id="view_schweppes_export_line_tree" model="ir.ui.view">
+        <field name="name">schweppes.export.line.list</field>
+        <field name="model">schweppes.export.line</field>
         <field name="arch" type="xml">
-            <list string="Líneas de pedido Schweppes" create="false">
-                <field name="order_id"/>
-                <field name="order_partner_id"/>
+            <list string="Líneas de exportación Schweppes" create="false" delete="false">
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
                 <field name="name"/>
-                <field name="salesman_id"/>
-                <field name="product_uom_qty" string="Qty"/>
-                <field name="qty_delivered"/>
-                <field name="qty_invoiced"/>
-                <field name="qty_to_invoice"/>
-                <field name="product_uom" string="Unit of Measure" groups="uom.group_uom"/>
+                <field name="product_uom_qty"/>
+                <field name="price_unit"/>
                 <field name="discount" string="Descuento"/>
-                <field name="price_subtotal" sum="Total" widget="monetary"/>
-                <field name="currency_id" column_invisible="True"/>
+                <field name="discount_amount"/>
+                <field name="schweppes_product_code"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_schweppes_export_line_form" model="ir.ui.view">
+        <field name="name">schweppes.export.line.form</field>
+        <field name="model">schweppes.export.line</field>
+        <field name="arch" type="xml">
+            <form string="Línea de exportación Schweppes">
+                <sheet>
+                    <group>
+                        <field name="export_id" readonly="1"/>
+                        <field name="sale_order_id"/>
+                        <field name="sale_order_line_id"/>
+                        <field name="partner_id"/>
+                        <field name="product_id"/>
+                <field name="name"/>
+                        <field name="product_uom_qty"/>
+                        <field name="price_unit"/>
+                        <field name="discount"/>
+                        <field name="discount_amount" readonly="1"/>
+                        <field name="schweppes_product_code" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
 

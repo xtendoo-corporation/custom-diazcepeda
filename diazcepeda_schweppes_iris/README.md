@@ -12,6 +12,9 @@ Este módulo permite a los distribuidores autorizados de Schweppes generar un fi
 El sistema se basa en los **Pedidos de Venta** (`sale.order`) confirmados.
 - Solo se procesan los pedidos cuya fecha de pedido (`date_order`) está dentro del rango seleccionado por el usuario.
 - Solo se exportan las líneas de pedido cuyos productos tengan definido un **Código Artículo Schweppes**.
+- Antes de generar el fichero, el usuario carga esas líneas en una tabla intermedia editable: **`schweppes.export.line`** (`schweppes_export_lines`).
+- Desde esa tabla se pueden **añadir, quitar o editar** líneas manualmente antes de confirmar la exportación.
+- El fichero final IRIS se genera **exclusivamente** a partir de esa tabla snapshot vinculada con la cabecera de exportación.
 
 ### 2. Estructura de Registros
 El fichero generado sigue la jerarquía de registros IRIS:
@@ -42,8 +45,10 @@ Para que el módulo funcione correctamente, se deben rellenar los siguientes cam
 
 1. Acceder a **Ventas > Informes > Schweppes IRIS > Generar Exportación**.
 2. Crear un nuevo registro y definir el periodo temporal.
-3. Hacer clic en **Generar Fichero**.
-4. El sistema guardará el fichero en el registro y lo descargará automáticamente en formato `.txt`.
+3. Hacer clic en **Cargar / Recargar líneas** para poblar la tabla editable con las líneas encontradas.
+4. Revisar, editar, añadir o eliminar las líneas necesarias directamente en el formulario.
+5. Cuando la selección sea correcta, hacer clic en **Generar Fichero**.
+6. El sistema guardará el fichero en el registro y lo descargará automáticamente en formato `.txt`.
 
 ---
 **Autor:** Guillermo Barcena Lopez
