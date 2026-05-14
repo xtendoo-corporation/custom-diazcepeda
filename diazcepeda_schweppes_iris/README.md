@@ -48,7 +48,11 @@ Para que el módulo funcione correctamente, se deben rellenar los siguientes cam
 3. Hacer clic en **Cargar / Recargar líneas** para poblar la tabla editable con las líneas encontradas.
 4. Revisar, editar, añadir o eliminar las líneas necesarias directamente en el formulario.
 5. Cuando la selección sea correcta, hacer clic en **Generar Fichero**.
-6. El sistema guardará el fichero en el registro y lo descargará automáticamente en formato `.txt`.
+6. La exportación pasará al estado **Generado** y quedará disponible el fichero.
+7. Si hace falta modificar algo, usar **Editar** para eliminar el fichero generado y volver a **Borrador**.
+8. También se puede usar **Eliminar Fichero** para quitar manualmente el archivo generado.
+9. Cuando el fichero sea definitivo, hacer clic en **Enviar**.
+10. El estado de la exportación pasará de **Generado** a **Enviado**.
 
 ---
 **Autor:** Guillermo Barcena Lopez

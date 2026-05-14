@@ -6,34 +6,36 @@
         <field name="arch" type="xml">
             <form string="Exportar Schweppes IRIS">
                 <header>
-                    <button name="action_load_export_lines" string="Cargar / Recargar líneas" type="object" class="btn-secondary" invisible="state == 'done'"/>
-                    <button name="action_generate_file" string="Generar Fichero" type="object" class="oe_highlight" invisible="state == 'done'"/>
-                    <button name="action_generate_file" string="Regenerar Fichero" type="object" invisible="state == 'draft'"/>
-                    <button name="action_preview_file" string="Previsualizar" type="object" class="btn-primary"/>
-                    <field name="state" widget="statusbar"/>
+                    <button name="action_load_export_lines" string="Cargar / Recargar Líneas" type="object" class="btn-secondary" invisible="state == 'sent' or file_data"/>
+                    <button name="action_generate_file" string="Generar Fichero" type="object" class="oe_highlight" invisible="state == 'sent' or file_data"/>
+                    <button name="action_delete_file" string="Eliminar Fichero y Editar" type="object" class="btn-secondary" invisible="not file_data or state == 'sent'"/>
+                    <button name="action_preview_file" string="Previsualizar" type="object" class="btn-primary" invisible="line_count == 0"/>
+                    <button name="action_send_file" string="Enviar" type="object" class="oe_highlight" invisible="not file_data or state != 'generated'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,generated,sent"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1><field name="name"/></h1>
                     </div>
                     <group>
-                        <field name="date_from" readonly="state == 'done'"/>
-                        <field name="date_to" readonly="state == 'done'"/>
-                        <field name="company_id" groups="base.group_multi_company" readonly="state == 'done'"/>
+                        <field name="date_from" readonly="state == 'sent' or file_data"/>
+                        <field name="date_to" readonly="state == 'sent' or file_data"/>
+                        <field name="company_id" groups="base.group_multi_company" readonly="state == 'sent' or file_data"/>
                     </group>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_sale_orders" type="object" class="oe_stat_button" icon="fa-pencil-square-o" invisible="sale_order_count == 0">
                             <field name="sale_order_count" string="Pedidos" widget="statinfo"/>
                         </button>
-                        <button name="action_view_sale_order_lines" type="object" class="oe_stat_button" icon="fa-list" invisible="line_count == 0">
-                            <field name="line_count" string="Líneas" widget="statinfo"/>
-                        </button>
+<!--                        <button name="action_view_sale_order_lines" type="object" class="oe_stat_button" icon="fa-list" invisible="line_count == 0">-->
+<!--                            <field name="line_count" string="Líneas" widget="statinfo"/>-->
+<!--                        </button>-->
                         <button name="action_view_partners" type="object" class="oe_stat_button" icon="fa-users" invisible="partner_count == 0">
                             <field name="partner_count" string="Clientes" widget="statinfo"/>
                         </button>
                     </div>
-                    <group string="Líneas a exportar">
-                        <field name="export_line_ids" nolabel="1" readonly="state == 'done'">
+                    <notebook>
+                         <page string="Líneas a exportar">
+                        <field name="export_line_ids" nolabel="1" readonly="state == 'sent' or file_data">
                             <list editable="bottom" string="Líneas a exportar">
                                 <field name="sequence" widget="handle"/>
                                 <field name="sale_order_id"/>
@@ -48,8 +50,7 @@
                                 <field name="schweppes_product_code" readonly="1"/>
                             </list>
                         </field>
-                    </group>
-                    <notebook>
+                    </page>
                         <page string="Archivo generado">
                             <group>
                                 <field name="file_name" invisible="not file_name"/>

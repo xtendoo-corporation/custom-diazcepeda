@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class SchweppesExportLine(models.Model):
@@ -118,4 +119,39 @@ class SchweppesExportLine(models.Model):
             if rec.product_id and not rec.name:
                 rec.name = rec.product_id.display_name
             rec.schweppes_product_code = rec.product_id.schweppes_product_code or False
+
+    def _ensure_export_is_editable(self):
+        """La snapshot solo se puede editar cuando la cabecera está realmente en borrador."""
+        locked_exports = self.mapped('export_id').filtered(lambda export: export.state == 'sent' or export.file_data)
+        if locked_exports:
+            raise UserError(_("No puedes modificar líneas de una exportación bloqueada o ya enviada. Pulsa Editar en la cabecera para volver a borrador."))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.context.get('skip_export_lock'):
+            export_ids = [vals.get('export_id') for vals in vals_list if vals.get('export_id')]
+            if export_ids:
+                self.env['schweppes.iris.export'].browse(export_ids)._ensure_can_edit_export()
+        records = super().create(vals_list)
+        if not self.env.context.get('skip_export_invalidation'):
+            records.mapped('export_id')._invalidate_generated_file()
+        return records
+
+    def write(self, vals):
+        exports = self.mapped('export_id')
+        if not self.env.context.get('skip_export_lock'):
+            self._ensure_export_is_editable()
+        res = super().write(vals)
+        if not self.env.context.get('skip_export_invalidation'):
+            exports._invalidate_generated_file()
+        return res
+
+    def unlink(self):
+        exports = self.mapped('export_id')
+        if not self.env.context.get('skip_export_lock'):
+            self._ensure_export_is_editable()
+        res = super().unlink()
+        if not self.env.context.get('skip_export_invalidation'):
+            exports._invalidate_generated_file()
+        return res
 

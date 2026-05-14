@@ -16,8 +16,9 @@ class SchweppesIrisExport(models.Model):
     company_id = fields.Many2one('res.company', string='Compañía', default=lambda self: self.env.company)
     state = fields.Selection([
         ('draft', 'Borrador'),
-        ('done', 'Generado')
-    ], string='Estado', default='draft')
+        ('generated', 'Generado'),
+        ('sent', 'Enviado')
+    ], string='Estado', default='draft', tracking=True, copy=False)
 
     file_data = fields.Binary(string='Archivo TXT', readonly=True)
     file_name = fields.Char(string='Nombre del Archivo', readonly=True)
@@ -41,6 +42,18 @@ class SchweppesIrisExport(models.Model):
     sale_order_ids = fields.Many2many('sale.order', string='Pedidos Incluidos', readonly=True, compute='_compute_related_records')
     partner_ids = fields.Many2many('res.partner', string='Clientes Incluidos', readonly=True, compute='_compute_related_records')
 
+    def _is_locked_for_edition(self):
+        """Bloquea la edición cuando hay fichero generado o el envío ya es definitivo."""
+        self.ensure_one()
+        return self.state == 'sent' or bool(self.file_data)
+
+    def _ensure_can_edit_export(self):
+        for rec in self:
+            if rec.state == 'sent':
+                raise UserError(_("No puedes modificar una exportación ya enviada."))
+            if rec.file_data:
+                raise UserError(_("La exportación está bloqueada mientras exista un fichero generado. Pulsa Editar para eliminarlo y volver a borrador."))
+
     @api.model_create_multi
     def create(self, vals_list):
         # Odoo 18: create recibe una lista de dicts
@@ -48,6 +61,78 @@ class SchweppesIrisExport(models.Model):
             if vals.get('name', _('Nuevo')) == _('Nuevo'):
                 vals['name'] = self.env['ir.sequence'].next_by_code('schweppes.iris.export') or _('Nuevo')
         return super().create(vals_list)
+
+    def init(self):
+        self._cr.execute("""
+            UPDATE schweppes_iris_export
+               SET state = 'generated'
+             WHERE state = 'done'
+        """)
+        self._cr.execute("""
+            UPDATE schweppes_iris_export
+               SET state = 'draft'
+             WHERE state IS NULL
+                OR state NOT IN ('draft', 'generated', 'sent')
+        """)
+
+    def write(self, vals):
+        protected_fields = {'date_from', 'date_to', 'company_id', 'export_line_ids'}
+        if not self.env.context.get('skip_export_lock') and protected_fields & set(vals):
+            self._ensure_can_edit_export()
+        should_invalidate = (
+            not self.env.context.get('skip_export_invalidation')
+            and bool({'date_from', 'date_to', 'company_id'} & set(vals))
+        )
+        res = super().write(vals)
+        if should_invalidate:
+            self._invalidate_generated_file()
+        return res
+
+    def _delete_generated_attachments(self):
+        for rec in self:
+            attachments = self.env['ir.attachment'].search([
+                ('res_model', '=', rec._name),
+                ('res_id', '=', rec.id),
+                ('mimetype', '=', 'text/plain'),
+            ])
+            if attachments:
+                attachments.unlink()
+
+    def _invalidate_generated_file(self):
+        for rec in self:
+            rec._delete_generated_attachments()
+            vals = {}
+            if rec.file_data:
+                vals['file_data'] = False
+            if rec.file_name:
+                vals['file_name'] = False
+            if rec.state != 'draft':
+                vals['state'] = 'draft'
+            if vals:
+                super(SchweppesIrisExport, rec.with_context(skip_export_invalidation=True)).write(vals)
+
+    def action_delete_file(self):
+        self.ensure_one()
+        if self.state == 'sent':
+            raise UserError(_("No puedes eliminar el fichero de una exportación ya enviada."))
+        if not self.file_data:
+            raise UserError(_("No hay ningún fichero generado para eliminar."))
+
+        self._invalidate_generated_file()
+        self.message_post(
+            body=_("Se ha eliminado el fichero generado y la exportación ha vuelto a borrador.")
+        )
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_edit_file(self):
+        # Compatibilidad hacia atrás: editar equivale a eliminar el fichero y volver a borrador.
+        return self.action_delete_file()
 
     @api.depends('export_line_ids', 'export_line_ids.sale_order_id', 'export_line_ids.partner_id')
     def _compute_summary_counts(self):
@@ -95,6 +180,7 @@ class SchweppesIrisExport(models.Model):
 
     def _reload_export_lines(self):
         self.ensure_one()
+        self._ensure_can_edit_export()
         if not self.date_from or not self.date_to or not self.company_id:
             raise UserError(_("Debes indicar fecha desde, fecha hasta y compañía antes de cargar líneas."))
 
@@ -111,7 +197,8 @@ class SchweppesIrisExport(models.Model):
             commands.append((0, 0, self._prepare_export_line_vals(sale_line, sequence)))
             sequence += 10
 
-        self.write({'export_line_ids': commands})
+        self.with_context(skip_export_invalidation=True).write({'export_line_ids': commands})
+        self._invalidate_generated_file()
         return self.export_line_ids
 
     def action_load_export_lines(self):
@@ -250,28 +337,49 @@ class SchweppesIrisExport(models.Model):
 
     def action_generate_file(self):
         self.ensure_one()
+        if self.state == 'sent':
+            raise UserError(_("No puedes regenerar una exportación ya enviada."))
+        if self.file_data:
+            raise UserError(_("La exportación ya tiene un fichero generado. Pulsa Editar para eliminarlo antes de regenerar."))
         content, header_count, partners_to_export, now = self._build_iris_content_from_export_lines()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
 
+        self._delete_generated_attachments()
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
-            'state': 'done',
+            'state': 'generated',
         })
 
-        # Eliminar adjuntos anteriores vinculados a este registro
-        old_attachments = self.env['ir.attachment'].search([
-            ('res_model', '=', self._name),
-            ('res_id', '=', self.id),
-            ('mimetype', '=', 'text/plain'),
-        ])
-        if old_attachments:
-            old_attachments.unlink()
+        usuario = self.env.user.name
+        self.message_post(
+            body=_(
+                "El usuario %s ha generado/regenerado el fichero IRIS (%s cabeceras, %s clientes, %s líneas)."
+            ) % (usuario, header_count, len(partners_to_export), len(self.export_line_ids)),
+        )
 
-        # Crear el nuevo adjunto
+        # Recargar la vista formulario para reflejar cambios
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_send_file(self):
+        self.ensure_one()
+        if self.state == 'sent':
+            raise UserError(_("La exportación ya fue enviada y no admite más cambios."))
+        if self.state != 'generated':
+            raise UserError(_("Primero debes generar el fichero para poder enviarlo."))
+        if not self.file_data:
+            raise UserError(_("Primero debes generar el fichero antes de enviarlo."))
+
+        self._delete_generated_attachments()
         attachment = self.env['ir.attachment'].create({
-            'name': file_name,
-            'datas': base64.b64encode(content.encode('utf-8')),
+            'name': self.file_name or f"{datetime.now().strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt",
+            'datas': self.file_data,
             'res_model': self._name,
             'res_id': self.id,
             'type': 'binary',
@@ -279,13 +387,16 @@ class SchweppesIrisExport(models.Model):
             'public': True,
         })
 
+        self.with_context(skip_export_invalidation=True).write({'state': 'sent'})
+
         usuario = self.env.user.name
         self.message_post(
-            body=_("El usuario %s ha generado/regenerado el fichero IRIS (%s cabeceras, %s clientes, %s líneas).") % (usuario, header_count, len(partners_to_export), len(self.export_line_ids)),
-            attachment_ids=[attachment.id]
+            body=_(
+                "El usuario %s ha enviado el fichero IRIS (%s pedidos, %s clientes, %s líneas)."
+            ) % (usuario, self.sale_order_count, self.partner_count, self.line_count),
+            attachment_ids=[attachment.id],
         )
 
-        # Recargar la vista formulario para reflejar cambios
         return {
             'type': 'ir.actions.act_window',
             'res_model': self._name,

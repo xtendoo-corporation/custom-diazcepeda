@@ -97,7 +97,7 @@ class TestSchweppesIris(TransactionCase):
     # ── Generación del fichero ────────────────────────────────────────────────
 
     def test_generate_file_raises_error_without_sale_orders(self):
-        """action_generate_file lanza UserError si no hay pedidos confirmados en el rango"""
+        """Cargar líneas lanza UserError si no hay pedidos confirmados en el rango"""
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2000-01-01',
             'date_to': '2000-01-31',
@@ -105,10 +105,10 @@ class TestSchweppesIris(TransactionCase):
         })
         with self.assertRaises(UserError,
                                msg="Debe lanzar UserError cuando no hay pedidos"):
-            record.action_generate_file()
+            record.action_load_export_lines()
 
-    def test_generate_file_sets_state_done(self):
-        """Tras generar el fichero, el estado cambia a 'done'"""
+    def test_generate_file_sets_state_generated(self):
+        """Generar crea el fichero y deja el estado en generado."""
         self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
@@ -117,7 +117,8 @@ class TestSchweppesIris(TransactionCase):
         })
         record.action_load_export_lines()
         record.action_generate_file()
-        self.assertEqual(record.state, 'done')
+        self.assertEqual(record.state, 'generated')
+        self.assertTrue(record.file_data)
 
     def test_generate_file_content_structure(self):
         """El fichero IRIS tiene la estructura correcta: CT al inicio y FT al final"""
@@ -152,8 +153,8 @@ class TestSchweppesIris(TransactionCase):
         self.assertIn('DIDP', content, "Debe contener registros DIDP (línea de producto)")
         self.assertIn('DIMC', content, "Debe contener registros DIMC (ficha de cliente)")
 
-    def test_generate_file_creates_attachment(self):
-        """La generación crea un adjunto .txt en el registro"""
+    def test_generate_file_does_not_create_attachment_automatically(self):
+        """Generar no debe adjuntar automáticamente; eso se hace al enviar."""
         self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
@@ -167,8 +168,114 @@ class TestSchweppesIris(TransactionCase):
             ('res_id', '=', record.id),
             ('mimetype', '=', 'text/plain'),
         ], limit=1)
-        self.assertTrue(attachment, "Debe crearse un adjunto de tipo text/plain")
+        self.assertFalse(attachment, "No debe crearse adjunto hasta pulsar Enviar")
         self.assertTrue(record.file_name.endswith('.txt'))
+
+    def test_send_file_marks_record_as_sent_and_creates_attachment(self):
+        """Enviar debe crear el adjunto y pasar el registro a enviado."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+        record.action_send_file()
+
+        attachment = self.env['ir.attachment'].search([
+            ('res_model', '=', 'schweppes.iris.export'),
+            ('res_id', '=', record.id),
+            ('mimetype', '=', 'text/plain'),
+        ], limit=1)
+
+        self.assertEqual(record.state, 'sent')
+        self.assertTrue(attachment, "Debe crearse el adjunto al enviar")
+
+    def test_delete_file_returns_record_to_draft(self):
+        """Eliminar el fichero debe limpiar binario/nombre y volver a borrador."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+
+        self.assertEqual(record.state, 'generated')
+        self.assertTrue(record.file_data)
+
+        record.action_delete_file()
+
+        self.assertEqual(record.state, 'draft')
+        self.assertFalse(record.file_data)
+        self.assertFalse(record.file_name)
+
+    def test_delete_file_raises_if_no_generated_file(self):
+        """No debe poder eliminarse un fichero inexistente."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+
+        with self.assertRaises(UserError):
+            record.action_delete_file()
+
+    def test_generated_export_is_blocked_until_deleting_file(self):
+        """Mientras exista file_data, la exportación generada no debe admitir cambios directos."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+
+        with self.assertRaises(UserError):
+            record.write({'date_to': '2024-08-01'})
+
+        with self.assertRaises(UserError):
+            record.export_line_ids[0].write({'product_uom_qty': 321})
+
+        record.action_delete_file()
+        record.write({'date_to': '2024-08-01'})
+        record.export_line_ids[0].write({'product_uom_qty': 321})
+
+        self.assertEqual(record.state, 'draft')
+        self.assertEqual(record.date_to.isoformat(), '2024-08-01')
+        self.assertEqual(record.export_line_ids[0].product_uom_qty, 321)
+
+    def test_sent_export_is_immutable(self):
+        """Una exportación enviada no debe admitir recarga, regeneración ni cambios manuales."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+        record.action_send_file()
+
+        with self.assertRaises(UserError):
+            record.write({'date_to': '2024-08-01'})
+
+        with self.assertRaises(UserError):
+            record.action_load_export_lines()
+
+        with self.assertRaises(UserError):
+            record.action_generate_file()
+
+        with self.assertRaises(UserError):
+            record.action_delete_file()
+
+        with self.assertRaises(UserError):
+            record.export_line_ids[0].write({'product_uom_qty': 321})
 
     def test_summary_counters_updated(self):
         """Los contadores de pedidos, clientes y líneas se actualizan correctamente"""
@@ -295,4 +402,36 @@ class TestSchweppesIris(TransactionCase):
         custom_view = self.env.ref('diazcepeda_schweppes_iris.view_schweppes_export_line_tree')
         self.assertEqual(action['res_model'], 'schweppes.export.line')
         self.assertEqual(action['views'][0], (custom_view.id, 'list'))
+
+    def test_send_file_requires_generated_file(self):
+        """No se puede enviar si antes no se ha generado el fichero."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+
+        with self.assertRaises(UserError):
+            record.action_send_file()
+
+    def test_sent_snapshot_cannot_be_edited(self):
+        """Si la exportación está enviada, la snapshot no debe poder editarse."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+
+        record.action_load_export_lines()
+        record.action_generate_file()
+        record.action_send_file()
+
+        with self.assertRaises(UserError):
+            record.export_line_ids[0].write({'product_uom_qty': 321})
+
+        self.assertEqual(record.state, 'sent')
+        self.assertTrue(record.file_data)
 
