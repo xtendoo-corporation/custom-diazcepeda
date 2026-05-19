@@ -24,8 +24,20 @@
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='categ_id']" position="after">
-                <field name="schweppes_product_code"/>
+            <xpath expr="//notebook" position="inside">
+                <page string="Schweppes" name="schweppes">
+                    <group>
+                        <group>
+                            <field name="schweppes_product_code"/>
+                            <field name="schweppes_product_type"/>
+                        </group>
+                        <group>
+                            <field name="schweppes_brand"/>
+                            <field name="schweppes_class"/>
+                            <field name="schweppes_flavor"/>
+                        </group>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>

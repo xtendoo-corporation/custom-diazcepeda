@@ -1,6 +1,8 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
+from .product_template import SCHWEPPES_PRODUCT_TYPE_SELECTION
+
 
 class SchweppesExportLine(models.Model):
     _name = 'schweppes.export.line'
@@ -44,6 +46,7 @@ class SchweppesExportLine(models.Model):
         domain="[('schweppes_product_code', '!=', False)]",
     )
     name = fields.Char(string='Descripción')
+    distributor_product_name = fields.Char(string='Denominación DIMP')
     company_id = fields.Many2one(
         'res.company',
         related='export_id.company_id',
@@ -77,6 +80,14 @@ class SchweppesExportLine(models.Model):
         store=True,
         currency_field='currency_id',
     )
+    distributor_product_code = fields.Char(string='Código producto distribuidor')
+    product_brand = fields.Char(string='Marca IRIS')
+    product_class = fields.Char(string='Clase IRIS')
+    product_flavor = fields.Char(string='Sabor IRIS')
+    product_type = fields.Selection(
+        selection=SCHWEPPES_PRODUCT_TYPE_SELECTION,
+        string='Tipo producto IRIS',
+    )
     schweppes_product_code = fields.Char(string='Código Schweppes', required=True)
 
     @api.depends('product_uom_qty', 'price_unit', 'discount')
@@ -108,9 +119,15 @@ class SchweppesExportLine(models.Model):
             rec.currency_id = line.order_id.currency_id
             rec.product_id = line.product_id
             rec.name = line.name
+            rec.distributor_product_name = line.product_id.product_tmpl_id.name or line.product_id.display_name
             rec.product_uom_qty = line.product_uom_qty
             rec.price_unit = line.price_unit
             rec.discount = line.discount
+            rec.distributor_product_code = line.product_id.default_code or False
+            rec.product_brand = line.product_id.schweppes_brand or False
+            rec.product_class = line.product_id.schweppes_class or False
+            rec.product_flavor = line.product_id.schweppes_flavor or False
+            rec.product_type = line.product_id.schweppes_product_type or False
             rec.schweppes_product_code = line.product_id.schweppes_product_code or ''
 
     @api.onchange('product_id')
@@ -118,13 +135,19 @@ class SchweppesExportLine(models.Model):
         for rec in self:
             if rec.product_id and not rec.name:
                 rec.name = rec.product_id.display_name
+            rec.distributor_product_name = rec.product_id.product_tmpl_id.name or rec.product_id.display_name or False
+            rec.distributor_product_code = rec.product_id.default_code or False
+            rec.product_brand = rec.product_id.schweppes_brand or False
+            rec.product_class = rec.product_id.schweppes_class or False
+            rec.product_flavor = rec.product_id.schweppes_flavor or False
+            rec.product_type = rec.product_id.schweppes_product_type or False
             rec.schweppes_product_code = rec.product_id.schweppes_product_code or False
 
     def _ensure_export_is_editable(self):
         """La snapshot solo se puede editar cuando la cabecera está realmente en borrador."""
         locked_exports = self.mapped('export_id').filtered(lambda export: export.state == 'sent' or export.file_data)
         if locked_exports:
-            raise UserError(_("No puedes modificar líneas de una exportación bloqueada o ya enviada. Pulsa Editar en la cabecera para volver a borrador."))
+            raise UserError(_("No puedes modificar líneas de una exportación bloqueada o ya enviada. Usa Eliminar fichero y editar en la cabecera para volver a borrador."))
 
     @api.model_create_multi
     def create(self, vals_list):

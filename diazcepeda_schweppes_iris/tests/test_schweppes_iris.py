@@ -27,7 +27,12 @@ class TestSchweppesIris(TransactionCase):
         })
         cls.product = cls.env['product.product'].create({
             'name': 'Tónica Schweppes 33cl',
+            'default_code': 'DIST0001',
             'schweppes_product_code': 'SCHW-001',
+            'schweppes_product_type': 'FERT',
+            'schweppes_brand': 'SCH',
+            'schweppes_class': 'TONICA',
+            'schweppes_flavor': 'LIMON',
             'list_price': 0.90,
             'taxes_id': [],
         })
@@ -63,12 +68,21 @@ class TestSchweppesIris(TransactionCase):
         self.assertEqual(partner.schweppes_delivery_type, 'I')
 
     def test_product_schweppes_code_field_exists(self):
-        """El campo schweppes_product_code existe en product.template"""
+        """Los campos maestros de producto IRIS existen en product.template."""
         tmpl = self.env['product.template'].create({
             'name': 'Producto IRIS Test',
+            'default_code': 'DIST9999',
             'schweppes_product_code': 'PROD-IRIS-99',
+            'schweppes_product_type': 'ENVA',
+            'schweppes_brand': 'ABC',
+            'schweppes_class': 'CLASE1',
+            'schweppes_flavor': 'SABOR',
         })
         self.assertEqual(tmpl.schweppes_product_code, 'PROD-IRIS-99')
+        self.assertEqual(tmpl.schweppes_product_type, 'ENVA')
+        self.assertEqual(tmpl.schweppes_brand, 'ABC')
+        self.assertEqual(tmpl.schweppes_class, 'CLASE1')
+        self.assertEqual(tmpl.schweppes_flavor, 'SABOR')
 
     def test_company_distributor_code_field_exists(self):
         """El campo schweppes_distributor_code existe en res.company"""
@@ -138,8 +152,8 @@ class TestSchweppesIris(TransactionCase):
         self.assertTrue(lines[-1].startswith('FT'),
                         f"La última línea debe empezar por 'FT': {lines[-1]}")
 
-    def test_generate_file_contains_dicp_and_didp(self):
-        """El fichero contiene registros DICP (cabecera pedido) y DIDP (línea producto)"""
+    def test_generate_file_contains_dicp_didp_dimc_and_dimp(self):
+        """El fichero contiene cabeceras, detalle, clientes y maestros DIMP de producto."""
         self._create_confirmed_sale_order()
         record = self.env['schweppes.iris.export'].create({
             'date_from': '2024-07-01',
@@ -152,6 +166,83 @@ class TestSchweppesIris(TransactionCase):
         self.assertIn('DICP', content, "Debe contener registros DICP (cabecera de pedido)")
         self.assertIn('DIDP', content, "Debe contener registros DIDP (línea de producto)")
         self.assertIn('DIMC', content, "Debe contener registros DIMC (ficha de cliente)")
+        self.assertIn('DIMP', content, "Debe contener registros DIMP (maestro de producto distribuidor)")
+
+    def test_generate_file_creates_single_dimp_per_distributor_product(self):
+        """Un mismo producto distribuidor solo debe generar un DIMP aunque aparezca en varias líneas."""
+        order = self.env['sale.order'].create({
+            'partner_id': self.partner.id,
+            'date_order': '2024-07-10 10:00:00',
+            'company_id': self.company.id,
+            'order_line': [
+                (0, 0, {
+                    'product_id': self.product.id,
+                    'name': 'Descripción comercial A',
+                    'product_uom_qty': 10,
+                    'price_unit': 0.90,
+                }),
+                (0, 0, {
+                    'product_id': self.product.id,
+                    'name': 'Descripción comercial B',
+                    'product_uom_qty': 20,
+                    'price_unit': 0.90,
+                }),
+            ],
+        })
+        order.action_confirm()
+        order.write({'date_order': '2024-07-10 10:00:00'})
+
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+
+        content = base64.b64decode(record.file_data).decode('utf-8')
+        dimp_lines = [line for line in content.split('\r\n') if line.startswith('DIMP')]
+
+        self.assertEqual(len(dimp_lines), 1)
+        self.assertIn('DIST0001', dimp_lines[0])
+        self.assertIn('FERT', dimp_lines[0])
+        self.assertIn('SCHW-001', dimp_lines[0])
+        self.assertIn('TONICA SCHWEPPES 33CL', dimp_lines[0])
+
+    def test_generate_file_raises_if_dimp_required_data_is_missing(self):
+        """No debe generarse el fichero si falta el código distribuidor DIMP."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.export_line_ids[0].write({
+            'distributor_product_code': False,
+            'product_type': '',
+        })
+
+        with self.assertRaises(UserError):
+            record.action_generate_file()
+
+    def test_generate_file_allows_empty_dimp_product_type(self):
+        """El tipo de producto IRIS puede ir vacío y debe exportarse como campo en blanco."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.export_line_ids[0].write({'product_type': ''})
+
+        record.action_generate_file()
+
+        content = base64.b64decode(record.file_data).decode('utf-8')
+        dimp_line = next(line for line in content.split('\r\n') if line.startswith('DIMP'))
+        self.assertTrue(dimp_line)
+        self.assertIn('DIST0001', dimp_line)
 
     def test_generate_file_does_not_create_attachment_automatically(self):
         """Generar no debe adjuntar automáticamente; eso se hace al enviar."""
@@ -308,6 +399,8 @@ class TestSchweppesIris(TransactionCase):
         self.assertEqual(record.export_line_ids.sale_order_id, order)
         self.assertEqual(record.export_line_ids.partner_id, self.partner)
         self.assertEqual(record.export_line_ids.product_id, self.product)
+        self.assertEqual(record.export_line_ids.distributor_product_code, 'DIST0001')
+        self.assertEqual(record.export_line_ids.product_type, 'FERT')
 
     def test_generate_file_uses_snapshot_lines_not_live_sale_lines(self):
         """La exportación debe salir de la tabla nueva editable."""

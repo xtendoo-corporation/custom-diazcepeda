@@ -52,7 +52,7 @@ class SchweppesIrisExport(models.Model):
             if rec.state == 'sent':
                 raise UserError(_("No puedes modificar una exportación ya enviada."))
             if rec.file_data:
-                raise UserError(_("La exportación está bloqueada mientras exista un fichero generado. Pulsa Editar para eliminarlo y volver a borrador."))
+                raise UserError(_("La exportación está bloqueada mientras exista un fichero generado. Usa Eliminar fichero y editar para volver a borrador."))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -171,10 +171,16 @@ class SchweppesIrisExport(models.Model):
             'partner_id': sale_line.order_id.partner_id.id,
             'product_id': sale_line.product_id.id,
             'name': sale_line.name,
+            'distributor_product_name': sale_line.product_id.product_tmpl_id.name or sale_line.product_id.display_name,
             'currency_id': sale_line.order_id.currency_id.id,
             'product_uom_qty': sale_line.product_uom_qty,
             'price_unit': sale_line.price_unit,
             'discount': sale_line.discount,
+            'distributor_product_code': sale_line.product_id.default_code or '',
+            'product_brand': sale_line.product_id.schweppes_brand or '',
+            'product_class': sale_line.product_id.schweppes_class or '',
+            'product_flavor': sale_line.product_id.schweppes_flavor or '',
+            'product_type': sale_line.product_id.schweppes_product_type or '',
             'schweppes_product_code': sale_line.product_id.schweppes_product_code or '',
         }
 
@@ -231,17 +237,68 @@ class SchweppesIrisExport(models.Model):
                 not line.sale_order_id
                 or not line.partner_id
                 or not line.product_id
+                or not line.distributor_product_code
                 or not line.schweppes_product_code
             )
         )
         if invalid_lines:
-            raise UserError(_("Todas las líneas a exportar deben tener pedido, cliente, producto y código Schweppes."))
+            raise UserError(_("Todas las líneas a exportar deben tener pedido, cliente, producto, código de producto distribuidor y código Schweppes."))
 
         return export_lines
+
+    def _get_dimp_product_name(self, export_line):
+        """La denominación DIMP debe salir del maestro de producto, no de la descripción comercial de la línea."""
+        self.ensure_one()
+        return (
+            export_line.distributor_product_name
+            or export_line.product_id.product_tmpl_id.name
+            or export_line.product_id.display_name
+            or ''
+        )
+
+    def _get_dimp_records(self, export_lines):
+        dimp_records = {}
+        for export_line in export_lines.sorted(lambda line: (line.distributor_product_code or '', line.id)):
+            product_code = export_line.distributor_product_code or ''
+            product_name = self._get_dimp_product_name(export_line)
+            if not product_name:
+                raise UserError(_(
+                    "El código de producto distribuidor %s no tiene denominación DIMP. Revisa el producto maestro o la snapshot."
+                ) % product_code)
+            record_vals = {
+                'product_code': product_code,
+                'brand': export_line.product_brand or '',
+                'product_class': export_line.product_class or '',
+                'flavor': export_line.product_flavor or '',
+                'product_type': export_line.product_type or '',
+                'product_name': product_name,
+                'schweppes_product_code': export_line.schweppes_product_code or '',
+            }
+            # Comparamos con el mismo criterio con el que finalmente se escribe el fichero IRIS.
+            normalized_vals = {
+                'product_code': iris_formatter.clean_text(record_vals['product_code'], 8),
+                'brand': iris_formatter.clean_text(record_vals['brand'], 3),
+                'product_class': iris_formatter.clean_text(record_vals['product_class'], 6),
+                'flavor': iris_formatter.clean_text(record_vals['flavor'], 5),
+                'product_type': iris_formatter.clean_text(record_vals['product_type'], 4),
+                'product_name': iris_formatter.clean_text(record_vals['product_name'], 25),
+                'schweppes_product_code': iris_formatter.clean_text(record_vals['schweppes_product_code'], 8),
+            }
+            existing = dimp_records.get(product_code)
+            if existing and existing['normalized'] != normalized_vals:
+                raise UserError(_(
+                    "El código de producto distribuidor %s aparece con datos DIMP distintos en la exportación. Revisa marca, clase, sabor, tipo, denominación y código Schweppes en la snapshot."
+                ) % product_code)
+            dimp_records[product_code] = {
+                'raw': record_vals,
+                'normalized': normalized_vals,
+            }
+        return [dimp_records[key]['raw'] for key in sorted(dimp_records)]
 
     def _build_iris_content_from_export_lines(self):
         self.ensure_one()
         export_lines = self._get_lines_for_export()
+        dimp_records = self._get_dimp_records(export_lines)
 
         lines = []
         partners_to_export = self.env['res.partner']
@@ -330,6 +387,17 @@ class SchweppesIrisExport(models.Model):
                 ""
             ))
 
+        for dimp_record in dimp_records:
+            lines.append(iris_formatter.format_dimp(
+                dimp_record['product_code'],
+                dimp_record['brand'],
+                dimp_record['product_class'],
+                dimp_record['flavor'],
+                dimp_record['product_type'],
+                dimp_record['product_name'],
+                dimp_record['schweppes_product_code'],
+            ))
+
         records_count = len(lines) + 1
         lines.append(iris_formatter.format_ft(records_count, header_count))
         content = "\r\n".join(lines) + "\r\n"
@@ -340,7 +408,7 @@ class SchweppesIrisExport(models.Model):
         if self.state == 'sent':
             raise UserError(_("No puedes regenerar una exportación ya enviada."))
         if self.file_data:
-            raise UserError(_("La exportación ya tiene un fichero generado. Pulsa Editar para eliminarlo antes de regenerar."))
+            raise UserError(_("La exportación ya tiene un fichero generado. Usa Eliminar fichero y editar antes de regenerar."))
         content, header_count, partners_to_export, now = self._build_iris_content_from_export_lines()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
 

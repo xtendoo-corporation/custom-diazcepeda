@@ -23,6 +23,7 @@ El fichero generado sigue la jerarquía de registros IRIS:
 - **DIDP**: Detalle del producto (unidades servidas, precio, código Schweppes...).
 - **DIDD**: Detalle de descuentos comerciales aplicados en línea.
 - **DIMC**: Maestro de datos de los clientes (dirección, NIF, tipo de establecimiento...). Se genera automáticamente para todos los clientes que aparecen en los pedidos del periodo.
+- **DIMP**: Maestro de productos del distribuidor (código distribuidor, marca, clase, sabor, tipo, denominación y código Schweppes) generado a partir de la snapshot editable.
 - **FT**: Fin de transmisión con control de integridad (sumatorio de registros).
 
 ## Configuración y Mapeos
@@ -34,6 +35,10 @@ Para que el módulo funcione correctamente, se deben rellenar los siguientes cam
 
 ### Ficha de Productos
 - **Inventario > Productos**: En el formulario general, rellenar el campo **Código Artículo Schweppes** (ej: SW87116). Si este campo está vacío, el producto no aparecerá en el informe de ventas.
+- Además, para poder generar el registro **DIMP**, cada producto exportable debe tener informados estos datos IRIS:
+  - **Referencia interna** (`default_code`): código de producto del distribuidor.
+  - **Tipo de Producto IRIS** (ej: `ENVA`, `FERT`, `PLV`, `TRLD`).
+  - **Marca IRIS**, **Clase IRIS** y **Sabor IRIS** cuando aplique.
 
 ### Ficha de Clientes
 - **Contactos > Schweppes IRIS**:

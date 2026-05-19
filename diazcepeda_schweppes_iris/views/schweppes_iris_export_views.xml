@@ -42,12 +42,18 @@
                                 <field name="sale_order_line_id" optional="hide"/>
                                 <field name="partner_id"/>
                                 <field name="product_id"/>
+                                <field name="distributor_product_code" optional="show"/>
+                                <field name="product_type" optional="show"/>
+                                <field name="distributor_product_name" optional="hide"/>
                                 <field name="name" optional="show"/>
+                                <field name="product_brand" optional="hide"/>
+                                <field name="product_class" optional="hide"/>
+                                <field name="product_flavor" optional="hide"/>
                                 <field name="product_uom_qty"/>
                                 <field name="price_unit"/>
                                 <field name="discount"/>
                                 <field name="discount_amount" readonly="1"/>
-                                <field name="schweppes_product_code" readonly="1"/>
+                                <field name="schweppes_product_code"/>
                             </list>
                         </field>
                     </page>
@@ -96,6 +102,9 @@
                 <field name="sale_order_id"/>
                 <field name="partner_id"/>
                 <field name="product_id"/>
+                <field name="distributor_product_code"/>
+                <field name="product_type"/>
+                <field name="distributor_product_name" optional="hide"/>
                 <field name="name"/>
                 <field name="product_uom_qty"/>
                 <field name="price_unit"/>
@@ -118,12 +127,18 @@
                         <field name="sale_order_line_id"/>
                         <field name="partner_id"/>
                         <field name="product_id"/>
-                <field name="name"/>
+                        <field name="distributor_product_code"/>
+                        <field name="product_type"/>
+                        <field name="distributor_product_name"/>
+                        <field name="product_brand"/>
+                        <field name="product_class"/>
+                        <field name="product_flavor"/>
+                        <field name="name"/>
                         <field name="product_uom_qty"/>
                         <field name="price_unit"/>
                         <field name="discount"/>
                         <field name="discount_amount" readonly="1"/>
-                        <field name="schweppes_product_code" readonly="1"/>
+                        <field name="schweppes_product_code"/>
                     </group>
                 </sheet>
             </form>
