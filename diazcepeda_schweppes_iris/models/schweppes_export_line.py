@@ -95,11 +95,16 @@ class SchweppesExportLine(models.Model):
         for rec in self:
             rec.discount_amount = (rec.price_unit * rec.product_uom_qty) * (rec.discount / 100.0)
 
+    def _get_snapshot_partner(self, sale_order):
+        """Para DIMC el partner snapshot debe ser el punto de venta cuando exista."""
+        self.ensure_one()
+        return sale_order.partner_shipping_id or sale_order.partner_id
+
     @api.onchange('sale_order_id')
     def _onchange_sale_order_id(self):
         for rec in self:
             if rec.sale_order_id:
-                rec.partner_id = rec.sale_order_id.partner_id
+                rec.partner_id = rec._get_snapshot_partner(rec.sale_order_id)
                 rec.sale_order_name = rec.sale_order_id.name or ''
                 rec.client_order_ref = rec.sale_order_id.client_order_ref or ''
                 rec.date_order = rec.sale_order_id.date_order
@@ -112,7 +117,7 @@ class SchweppesExportLine(models.Model):
             if not line:
                 continue
             rec.sale_order_id = line.order_id
-            rec.partner_id = line.order_id.partner_id
+            rec.partner_id = rec._get_snapshot_partner(line.order_id)
             rec.sale_order_name = line.order_id.name or ''
             rec.client_order_ref = line.order_id.client_order_ref or ''
             rec.date_order = line.order_id.date_order

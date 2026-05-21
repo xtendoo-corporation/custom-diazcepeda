@@ -160,7 +160,13 @@ class SchweppesIrisExport(models.Model):
             ('product_id.schweppes_product_code', '!=', False),
         ]
 
+    def _get_snapshot_partner(self, sale_order):
+        """Para DIMC el nombre comercial debe salir del punto de venta cuando exista."""
+        self.ensure_one()
+        return sale_order.partner_shipping_id or sale_order.partner_id
+
     def _prepare_export_line_vals(self, sale_line, sequence):
+        snapshot_partner = self._get_snapshot_partner(sale_line.order_id)
         return {
             'sequence': sequence,
             'sale_order_id': sale_line.order_id.id,
@@ -168,7 +174,7 @@ class SchweppesIrisExport(models.Model):
             'sale_order_name': sale_line.order_id.name or '',
             'client_order_ref': sale_line.order_id.client_order_ref or '',
             'date_order': sale_line.order_id.date_order,
-            'partner_id': sale_line.order_id.partner_id.id,
+            'partner_id': snapshot_partner.id,
             'product_id': sale_line.product_id.id,
             'name': sale_line.name,
             'distributor_product_name': sale_line.product_id.product_tmpl_id.name or sale_line.product_id.display_name,

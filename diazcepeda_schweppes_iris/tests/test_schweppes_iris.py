@@ -402,6 +402,98 @@ class TestSchweppesIris(TransactionCase):
         self.assertEqual(record.export_line_ids.distributor_product_code, 'DIST0001')
         self.assertEqual(record.export_line_ids.product_type, 'FERT')
 
+    def test_load_export_lines_uses_delivery_partner_as_snapshot_partner(self):
+        """La snapshot debe tomar el punto de venta del pedido para DIMC cuando exista."""
+        legal_partner = self.env['res.partner'].create({
+            'name': 'Razón Social Test S.L.',
+            'schweppes_customer_code': 'LEGAL-001',
+            'schweppes_route': '56',
+            'schweppes_delivery_type': 'D',
+        })
+        point_of_sale = self.env['res.partner'].create({
+            'name': 'Bar Punto de Venta',
+            'parent_id': legal_partner.id,
+            'type': 'delivery',
+            'schweppes_customer_code': 'SHOP-001',
+            'schweppes_route': '56',
+            'schweppes_delivery_type': 'D',
+        })
+        order = self.env['sale.order'].create({
+            'partner_id': legal_partner.id,
+            'partner_shipping_id': point_of_sale.id,
+            'date_order': '2024-07-10 10:00:00',
+            'company_id': self.company.id,
+            'order_line': [(0, 0, {
+                'product_id': self.product.id,
+                'name': self.product.name,
+                'product_uom_qty': 5,
+                'price_unit': 0.90,
+            })],
+        })
+        order.action_confirm()
+        order.write({'date_order': '2024-07-10 10:00:00'})
+
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+
+        record.action_load_export_lines()
+
+        self.assertEqual(record.export_line_ids.partner_id, point_of_sale)
+
+    def test_generate_file_uses_point_of_sale_as_dimc_commercial_name(self):
+        """DIMC debe usar el punto de venta como nombre comercial y la razón social como legal."""
+        legal_partner = self.env['res.partner'].create({
+            'name': 'Razón Social Test S.L.',
+            'schweppes_customer_code': 'LEGAL-001',
+            'schweppes_route': '56',
+            'schweppes_delivery_type': 'D',
+            'street': 'Calle Matriz 1',
+            'city': 'Sevilla',
+            'zip': '41001',
+        })
+        point_of_sale = self.env['res.partner'].create({
+            'name': 'Bar Punto de Venta',
+            'parent_id': legal_partner.id,
+            'type': 'delivery',
+            'schweppes_customer_code': 'SHOP-001',
+            'schweppes_route': '56',
+            'schweppes_delivery_type': 'D',
+            'street': 'Calle TPV 99',
+            'city': 'Sevilla',
+            'zip': '41002',
+        })
+        order = self.env['sale.order'].create({
+            'partner_id': legal_partner.id,
+            'partner_shipping_id': point_of_sale.id,
+            'date_order': '2024-07-10 10:00:00',
+            'company_id': self.company.id,
+            'order_line': [(0, 0, {
+                'product_id': self.product.id,
+                'name': self.product.name,
+                'product_uom_qty': 5,
+                'price_unit': 0.90,
+            })],
+        })
+        order.action_confirm()
+        order.write({'date_order': '2024-07-10 10:00:00'})
+
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+
+        content = base64.b64decode(record.file_data).decode('utf-8')
+        dimc_line = next(line for line in content.split('\r\n') if line.startswith('DIMC'))
+
+        self.assertIn('BAR PUNTO DE VENTA', dimc_line)
+        self.assertIn('RAZON SOCIAL TEST S.L.', dimc_line)
+
     def test_generate_file_uses_snapshot_lines_not_live_sale_lines(self):
         """La exportación debe salir de la tabla nueva editable."""
         self._create_confirmed_sale_order()
