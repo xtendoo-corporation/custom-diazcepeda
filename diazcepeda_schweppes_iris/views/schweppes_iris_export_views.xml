@@ -61,6 +61,8 @@
                             <group>
                                 <field name="file_name" invisible="not file_name"/>
                                 <field name="file_data" filename="file_name" invisible="not file_data"/>
+                                <field name="csv_file_name" invisible="not csv_file_name"/>
+                                <field name="csv_file_data" filename="csv_file_name" invisible="not csv_file_data"/>
                                 <field name="line_count" invisible="state == 'draft'"/>
                             </group>
                         </page>

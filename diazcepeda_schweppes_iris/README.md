@@ -53,7 +53,9 @@ Para que el módulo funcione correctamente, se deben rellenar los siguientes cam
 3. Hacer clic en **Cargar / Recargar líneas** para poblar la tabla editable con las líneas encontradas.
 4. Revisar, editar, añadir o eliminar las líneas necesarias directamente en el formulario.
 5. Cuando la selección sea correcta, hacer clic en **Generar Fichero**.
-6. La exportación pasará al estado **Generado** y quedará disponible el fichero.
+6. La exportación pasará al estado **Generado** y quedarán disponibles dos ficheros:
+   - **TXT** IRIS posicional.
+   - **CSV** con el formato del fichero tipo de liquidación Suntory (mismas 16 columnas de ejemplo).
 7. Si hace falta modificar algo, usar **Editar** para eliminar el fichero generado y volver a **Borrador**.
 8. También se puede usar **Eliminar Fichero** para quitar manualmente el archivo generado.
 9. Cuando el fichero sea definitivo, hacer clic en **Enviar**.

@@ -1,6 +1,8 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
+import csv
+import io
 from datetime import datetime, time
 from ..tools import iris_formatter
 
@@ -22,6 +24,8 @@ class SchweppesIrisExport(models.Model):
 
     file_data = fields.Binary(string='Archivo TXT', readonly=True)
     file_name = fields.Char(string='Nombre del Archivo', readonly=True)
+    csv_file_data = fields.Binary(string='Archivo CSV', readonly=True)
+    csv_file_name = fields.Char(string='Nombre del Archivo CSV', readonly=True)
 
     # Campos computados para la previsualización del archivo
     preview_file_data = fields.Binary(string='Archivo TXT Previsualización', readonly=True, compute='_compute_preview_file_data')
@@ -93,7 +97,7 @@ class SchweppesIrisExport(models.Model):
             attachments = self.env['ir.attachment'].search([
                 ('res_model', '=', rec._name),
                 ('res_id', '=', rec.id),
-                ('mimetype', '=', 'text/plain'),
+                ('mimetype', 'in', ['text/plain', 'text/csv']),
             ])
             if attachments:
                 attachments.unlink()
@@ -106,6 +110,10 @@ class SchweppesIrisExport(models.Model):
                 vals['file_data'] = False
             if rec.file_name:
                 vals['file_name'] = False
+            if rec.csv_file_data:
+                vals['csv_file_data'] = False
+            if rec.csv_file_name:
+                vals['csv_file_name'] = False
             if rec.state != 'draft':
                 vals['state'] = 'draft'
             if vals:
@@ -409,26 +417,97 @@ class SchweppesIrisExport(models.Model):
         content = "\r\n".join(lines) + "\r\n"
         return content, header_count, partners_to_export, now
 
+    def _get_csv_payment_label(self, export_line):
+        self.ensure_one()
+        order = export_line.sale_order_id
+        payment_term = order.payment_term_id if order else False
+        if payment_term and payment_term.name:
+            return 'CREDITO'
+        return 'CONTADO'
+
+    def _get_csv_customer_type(self, export_line):
+        self.ensure_one()
+        partner = export_line.partner_id
+        if partner.parent_id:
+            return 'CLIENTE'
+        return 'DISTRIBUIDOR'
+
+    def _get_csv_product_type_label(self, export_line):
+        self.ensure_one()
+        return dict(export_line._fields['product_type'].selection).get(export_line.product_type, '')
+
+    def _build_csv_content_from_export_lines(self):
+        self.ensure_one()
+        export_lines = self._get_lines_for_export()
+
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\r\n')
+        writer.writerow([
+            'Distribuidor',
+            'Cliente Distribuidor',
+            'Nombre Cliente Distribuidor',
+            'Cliente Schw',
+            'Forma pago',
+            'T Cte',
+            'Albaran',
+            'Fecha',
+            'IDT(identicket)',
+            'Tipo',
+            'Producto Schw',
+            'Nombre Articulo',
+            'Art. Distrib.',
+            'Nombre Articulo',
+            'Cajas',
+            'Importe dto total',
+        ])
+
+        for export_line in export_lines:
+            partner = export_line.partner_id
+            writer.writerow([
+                self.company_id.schweppes_distributor_code or '',
+                partner.ref or str(partner.id),
+                partner.name or '',
+                partner.schweppes_customer_code or '',
+                self._get_csv_payment_label(export_line),
+                self._get_csv_customer_type(export_line),
+                export_line.sale_order_name or '',
+                fields.Datetime.to_string(export_line.date_order) if export_line.date_order else '',
+                export_line.client_order_ref or '',
+                self._get_csv_product_type_label(export_line),
+                export_line.schweppes_product_code or '',
+                export_line.product_id.display_name or '',
+                export_line.distributor_product_code or '',
+                self._get_dimp_product_name(export_line),
+                export_line.product_uom_qty or 0.0,
+                export_line.discount_amount or 0.0,
+            ])
+
+        return output.getvalue()
+
     def action_generate_file(self):
         self.ensure_one()
         if self.state == 'sent':
             raise UserError(_("No puedes regenerar una exportación ya enviada."))
-        if self.file_data:
+        if self.file_data or self.csv_file_data:
             raise UserError(_("La exportación ya tiene un fichero generado. Usa Eliminar fichero y editar antes de regenerar."))
         content, header_count, partners_to_export, now = self._build_iris_content_from_export_lines()
+        csv_content = self._build_csv_content_from_export_lines()
         file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt"
+        csv_file_name = f"{now.strftime('%d%m%Y')}SCHW_IRIS_VENTAS.csv"
 
         self._delete_generated_attachments()
         self.write({
             'file_data': base64.b64encode(content.encode('utf-8')),
             'file_name': file_name,
+            'csv_file_data': base64.b64encode(csv_content.encode('utf-8-sig')),
+            'csv_file_name': csv_file_name,
             'state': 'generated',
         })
 
         usuario = self.env.user.name
         self.message_post(
             body=_(
-                "El usuario %s ha generado/regenerado el fichero IRIS (%s cabeceras, %s clientes, %s líneas)."
+                "El usuario %s ha generado/regenerado los ficheros IRIS TXT/CSV (%s cabeceras, %s clientes, %s líneas)."
             ) % (usuario, header_count, len(partners_to_export), len(self.export_line_ids)),
         )
 
@@ -449,9 +528,11 @@ class SchweppesIrisExport(models.Model):
             raise UserError(_("Primero debes generar el fichero para poder enviarlo."))
         if not self.file_data:
             raise UserError(_("Primero debes generar el fichero antes de enviarlo."))
+        if not self.csv_file_data:
+            raise UserError(_("Primero debes generar el fichero CSV antes de enviarlo."))
 
         self._delete_generated_attachments()
-        attachment = self.env['ir.attachment'].create({
+        txt_attachment = self.env['ir.attachment'].create({
             'name': self.file_name or f"{datetime.now().strftime('%d%m%Y')}SCHW_IRIS_VENTAS.txt",
             'datas': self.file_data,
             'res_model': self._name,
@@ -460,15 +541,24 @@ class SchweppesIrisExport(models.Model):
             'mimetype': 'text/plain',
             'public': True,
         })
+        csv_attachment = self.env['ir.attachment'].create({
+            'name': self.csv_file_name or f"{datetime.now().strftime('%d%m%Y')}SCHW_IRIS_VENTAS.csv",
+            'datas': self.csv_file_data,
+            'res_model': self._name,
+            'res_id': self.id,
+            'type': 'binary',
+            'mimetype': 'text/csv',
+            'public': True,
+        })
 
         self.with_context(skip_export_invalidation=True).write({'state': 'sent'})
 
         usuario = self.env.user.name
         self.message_post(
             body=_(
-                "El usuario %s ha enviado el fichero IRIS (%s pedidos, %s clientes, %s líneas)."
+                "El usuario %s ha enviado los ficheros IRIS TXT/CSV (%s pedidos, %s clientes, %s líneas)."
             ) % (usuario, self.sale_order_count, self.partner_count, self.line_count),
-            attachment_ids=[attachment.id],
+            attachment_ids=[txt_attachment.id, csv_attachment.id],
         )
 
         return {

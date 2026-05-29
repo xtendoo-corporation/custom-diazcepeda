@@ -133,6 +133,8 @@ class TestSchweppesIris(TransactionCase):
         record.action_generate_file()
         self.assertEqual(record.state, 'generated')
         self.assertTrue(record.file_data)
+        self.assertTrue(record.csv_file_data)
+        self.assertTrue(record.csv_file_name.endswith('.csv'))
 
     def test_generate_file_content_structure(self):
         """El fichero IRIS tiene la estructura correcta: CT al inicio y FT al final"""
@@ -261,6 +263,26 @@ class TestSchweppesIris(TransactionCase):
         ], limit=1)
         self.assertFalse(attachment, "No debe crearse adjunto hasta pulsar Enviar")
         self.assertTrue(record.file_name.endswith('.txt'))
+        self.assertTrue(record.csv_file_name.endswith('.csv'))
+        self.assertTrue(record.csv_file_data)
+
+    def test_generate_file_creates_csv_with_example_headers(self):
+        """Generar debe crear también un CSV con las 16 columnas del fichero tipo."""
+        self._create_confirmed_sale_order()
+        record = self.env['schweppes.iris.export'].create({
+            'date_from': '2024-07-01',
+            'date_to': '2024-07-31',
+            'company_id': self.company.id,
+        })
+        record.action_load_export_lines()
+        record.action_generate_file()
+
+        self.assertTrue(record.csv_file_data)
+        csv_content = base64.b64decode(record.csv_file_data).decode('utf-8-sig')
+
+        self.assertIn('Distribuidor;Cliente Distribuidor;Nombre Cliente Distribuidor;Cliente Schw;Forma pago;T Cte;Albaran;Fecha;IDT(identicket);Tipo;Producto Schw;Nombre Articulo;Art. Distrib.;Nombre Articulo;Cajas;Importe dto total', csv_content)
+        self.assertIn('DIST0001', csv_content)
+        self.assertIn('SCHW-001', csv_content)
 
     def test_send_file_marks_record_as_sent_and_creates_attachment(self):
         """Enviar debe crear el adjunto y pasar el registro a enviado."""
@@ -274,14 +296,16 @@ class TestSchweppesIris(TransactionCase):
         record.action_generate_file()
         record.action_send_file()
 
-        attachment = self.env['ir.attachment'].search([
+        attachments = self.env['ir.attachment'].search([
             ('res_model', '=', 'schweppes.iris.export'),
             ('res_id', '=', record.id),
-            ('mimetype', '=', 'text/plain'),
-        ], limit=1)
+            ('mimetype', 'in', ['text/plain', 'text/csv']),
+        ])
 
         self.assertEqual(record.state, 'sent')
-        self.assertTrue(attachment, "Debe crearse el adjunto al enviar")
+        self.assertEqual(len(attachments), 2, "Debe crear adjuntos TXT y CSV al enviar")
+        self.assertTrue(any(att.mimetype == 'text/plain' for att in attachments))
+        self.assertTrue(any(att.mimetype == 'text/csv' for att in attachments))
 
     def test_delete_file_returns_record_to_draft(self):
         """Eliminar el fichero debe limpiar binario/nombre y volver a borrador."""
