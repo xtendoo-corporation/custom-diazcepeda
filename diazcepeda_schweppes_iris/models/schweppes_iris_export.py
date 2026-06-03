@@ -381,8 +381,8 @@ class SchweppesIrisExport(models.Model):
             lines.append(iris_formatter.format_dimc(
                 partner.schweppes_customer_code or partner.ref or str(partner.id),
                 partner.schweppes_route or "56",
+                partner.company_name or partner.commercial_partner_id.name or partner.name or '',
                 partner.name,
-                partner.commercial_partner_id.name,
                 partner.street or "",
                 partner.vat or "",
                 partner.schweppes_delivery_type or "D",
