@@ -1,5 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import re
 import base64
 import csv
 import io
@@ -441,7 +442,7 @@ class SchweppesIrisExport(models.Model):
         export_lines = self._get_lines_for_export()
 
         output = io.StringIO()
-        writer = csv.writer(output, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\r\n')
+        writer = csv.writer(output, delimiter=';', quotechar='"', quoting=csv.QUOTE_ALL, lineterminator='\r\n')
         writer.writerow([
             'Distribuidor',
             'Cliente Distribuidor',
@@ -467,9 +468,9 @@ class SchweppesIrisExport(models.Model):
                 self.company_id.schweppes_distributor_code or '',
                 partner.ref or str(partner.id),
                 partner.name or '',
-                partner.schweppes_customer_code or '',
-                self._get_csv_payment_label(export_line),
-                self._get_csv_customer_type(export_line),
+                re.sub(r'[\x00-\x1f\x7f]', '', partner.schweppes_customer_code or ''),
+                'CONTADO',
+                'CLIENTE',
                 export_line.sale_order_name or '',
                 fields.Datetime.to_string(export_line.date_order) if export_line.date_order else '',
                 export_line.client_order_ref or '',
