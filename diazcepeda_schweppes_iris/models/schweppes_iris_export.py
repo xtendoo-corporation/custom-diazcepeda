@@ -467,7 +467,7 @@ class SchweppesIrisExport(models.Model):
             writer.writerow([
                 self.company_id.schweppes_distributor_code or '',
                 partner.ref or str(partner.id),
-                partner.name or '',
+                partner.company_name or partner.commercial_partner_id.name or partner.name or '',
                 re.sub(r'[\x00-\x1f\x7f]', '', partner.schweppes_customer_code or ''),
                 'CONTADO',
                 'CLIENTE',
