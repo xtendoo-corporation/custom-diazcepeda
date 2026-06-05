@@ -108,8 +108,15 @@
                                         <span t-field="line.product_uom_qty">3</span>
                                     </td>
                                     <td name="td_priceunit" class="text-end">
-                                        <span t-out="line._get_price_unit_tax_included_before_discount()"
-                                              t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        <!-- Precio unitario con IVA incluido -->
+                                        <t t-if="line.product_uom_qty">
+                                            <span t-esc="line.price_total / line.product_uom_qty"
+                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        </t>
+                                        <t t-else="">
+                                            <span t-field="line.price_unit"
+                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        </t>
                                     </td>
                                     <td t-if="display_discount" class="text-end">
                                         <span t-field="line.discount">-</span>

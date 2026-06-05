@@ -6,7 +6,7 @@
              header → t-attf-class="header o_company_#{company.id}_layout"
              La clase estática 'o_boxed_header' fue eliminada. -->
         <xpath expr="//div[contains(@t-attf-class, 'header')]" position="replace">
-            <div class="o_boxed_header" t-if="is_preprinted != 2">
+            <div t-attf-class="header o_company_#{company.id}_layout" t-if="is_preprinted != 2">
                 <div class="row mb8">
                     <div class="col-6">
                         <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="Logo"/>
