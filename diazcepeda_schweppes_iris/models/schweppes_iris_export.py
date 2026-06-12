@@ -172,7 +172,7 @@ class SchweppesIrisExport(models.Model):
     def _get_snapshot_partner(self, sale_order):
         """Para DIMC el nombre comercial debe salir del punto de venta cuando exista."""
         self.ensure_one()
-        return sale_order.partner_shipping_id or sale_order.partner_id
+        return sale_order.partner_id
 
     def _prepare_export_line_vals(self, sale_line, sequence):
         snapshot_partner = self._get_snapshot_partner(sale_line.order_id)
