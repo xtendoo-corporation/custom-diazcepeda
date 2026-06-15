@@ -172,7 +172,7 @@ class SchweppesIrisExport(models.Model):
     def _get_snapshot_partner(self, sale_order):
         """Para DIMC el nombre comercial debe salir del punto de venta cuando exista."""
         self.ensure_one()
-        return sale_order.partner_id
+        return sale_order.partner_shipping_id
 
     def _prepare_export_line_vals(self, sale_line, sequence):
         snapshot_partner = self._get_snapshot_partner(sale_line.order_id)
@@ -379,11 +379,14 @@ class SchweppesIrisExport(models.Model):
                     ))
 
         for partner in partners_to_export:
+            account_partner = partner
+            if partner.parent_id:
+                account_partner = partner.parent_id
             lines.append(iris_formatter.format_dimc(
                 partner.schweppes_customer_code or partner.ref or str(partner.id),
                 partner.schweppes_route or "56",
-                partner.company_name or partner.commercial_partner_id.name or partner.name or '',
                 partner.name,
+                account_partner.name,
                 partner.street or "",
                 partner.vat or "",
                 partner.schweppes_delivery_type or "D",

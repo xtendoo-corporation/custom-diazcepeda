@@ -98,7 +98,9 @@ class SchweppesExportLine(models.Model):
     def _get_snapshot_partner(self, sale_order):
         """Para DIMC el partner snapshot debe ser el punto de venta cuando exista."""
         self.ensure_one()
-        return sale_order.partner_shipping_id or sale_order.partner_id
+        if sale_order.partner_shipping_id != sale_order.partner_id:
+            return sale_order.partner_shipping_id
+        return sale_order.partner_id
 
     @api.onchange('sale_order_id')
     def _onchange_sale_order_id(self):
