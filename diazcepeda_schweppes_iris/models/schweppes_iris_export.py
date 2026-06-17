@@ -380,13 +380,21 @@ class SchweppesIrisExport(models.Model):
 
         for partner in partners_to_export:
             account_partner = partner
+            nombre_comercial = partner.company_name
+            nombre_fiscal = partner.name
             if partner.parent_id:
                 account_partner = partner.parent_id
+                nombre_comercial = partner.name
+                nombre_fiscal = account_partner.name
+            print("/"*50)
+            print("partner_id", partner)
+            print("account_partner", account_partner)
+            print("/"*50)
             lines.append(iris_formatter.format_dimc(
                 partner.schweppes_customer_code or partner.ref or str(partner.id),
                 partner.schweppes_route or "56",
-                partner.name,
-                account_partner.name,
+                nombre_comercial,
+                nombre_fiscal,
                 partner.street or "",
                 partner.vat or "",
                 partner.schweppes_delivery_type or "D",
@@ -467,10 +475,18 @@ class SchweppesIrisExport(models.Model):
 
         for export_line in export_lines:
             partner = export_line.partner_id
+            print("*"*100)
+            print("generando csv")
+            print("sale_id: " , export_line.sale_order_id)
+            nombre_cliente_csv = export_line.sale_order_id.partner_id.company_name
+            if export_line.sale_order_id.partner_id != export_line.sale_order_id.partner_shipping_id:
+                nombre_cliente_csv = export_line.sale_order_id.partner_shipping_id.name
+            print("nombre_cliente_csv: ", nombre_cliente_csv)
+            print("*"*100)
             writer.writerow([
                 self.company_id.schweppes_distributor_code or '',
                 partner.ref or str(partner.id),
-                partner.company_name or partner.commercial_partner_id.name or partner.name or '',
+                nombre_cliente_csv,
                 re.sub(r'[\x00-\x1f\x7f]', '', partner.schweppes_customer_code or ''),
                 'CONTADO',
                 'CLIENTE',
