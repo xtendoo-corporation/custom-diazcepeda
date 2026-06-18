@@ -330,7 +330,7 @@ class SchweppesIrisExport(models.Model):
                 export_line.sale_order_name or '',
                 export_line.client_order_ref or '',
                 export_line.date_order or datetime.min,
-                export_line.partner_id.id,
+                export_line.sale_order_id.partner_shipping_id.id,
             )
             grouped_lines.setdefault(key, self.env['schweppes.export.line'])
             grouped_lines[key] |= export_line
@@ -379,17 +379,20 @@ class SchweppesIrisExport(models.Model):
                     ))
 
         for partner in partners_to_export:
-            account_partner = partner
-            nombre_comercial = partner.company_name
-            nombre_fiscal = partner.name
-            if partner.parent_id:
-                account_partner = partner.parent_id
+            partner_id=self.env['res.partner'].browse(partner.id)
+            if not partner.is_company:
                 nombre_comercial = partner.name
-                nombre_fiscal = account_partner.name
-            print("/"*50)
-            print("partner_id", partner)
-            print("account_partner", account_partner)
-            print("/"*50)
+                nombre_fiscal = partner_id.parent_id.name
+                print("is_company false:", partner.is_company)
+                print("nombre_comercial: ", nombre_comercial)
+                print("nombre_fiscal: ", nombre_fiscal)
+            else:
+                nombre_comercial = partner.comercial
+                nombre_fiscal = partner.name
+                print("is_company:", partner.is_company)
+                print("nombre_comercial: ", nombre_comercial)
+                print("nombre_fiscal: ", partner_id.name)
+            print("*" * 50)
             lines.append(iris_formatter.format_dimc(
                 partner.schweppes_customer_code or partner.ref or str(partner.id),
                 partner.schweppes_route or "56",
@@ -472,15 +475,19 @@ class SchweppesIrisExport(models.Model):
             'Cajas',
             'Importe dto total',
         ])
-
         for export_line in export_lines:
             partner = export_line.partner_id
             print("*"*100)
             print("generando csv")
             print("sale_id: " , export_line.sale_order_id)
-            nombre_cliente_csv = export_line.sale_order_id.partner_id.company_name
+            print("partner: " , export_line.sale_order_id.partner_id)
+
             if export_line.sale_order_id.partner_id != export_line.sale_order_id.partner_shipping_id:
                 nombre_cliente_csv = export_line.sale_order_id.partner_shipping_id.name
+                print("cambiando", nombre_cliente_csv)
+            else:
+                nombre_cliente_csv = export_line.sale_order_id.partner_id.name
+                print("no cambiando", nombre_cliente_csv)
             print("nombre_cliente_csv: ", nombre_cliente_csv)
             print("*"*100)
             writer.writerow([
@@ -500,7 +507,7 @@ class SchweppesIrisExport(models.Model):
                 self._get_dimp_product_name(export_line),
                 export_line.product_uom_qty or 0.0,
                 export_line.discount_amount or 0.0,
-            ])
+                ])
 
         return output.getvalue()
 
