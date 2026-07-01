@@ -184,13 +184,18 @@
                                     <span t-if="line.name" t-field="line.name"
                                         t-options="{'widget': 'text'}" />
                                     <t t-set="lot_values" t-value="o._get_invoiced_lot_values()" />
-                                    <t t-if="lot_values">
-                                        <br />
+<!--                                    <p><span t-esc="lot_values"></span></p>-->
+<!--                                    <t t-if="lot_values">-->
+<!--                                        <br />-->
+<!--                                        <span>-->
+<!--                                            <i>• Lote</i>-->
+<!--                                        </span>-->
+                                        <t t-foreach="lot_values" t-as="snln_line">
+                                            <t t-if="line.name == snln_line['product_name']">
+                                                  <br />
                                         <span>
                                             <i>• Lote</i>
                                         </span>
-                                        <t t-foreach="lot_values" t-as="snln_line">
-                                            <t t-if="line.name == snln_line['product_name']">
                                                 <span>
                                                     <i>
                                                         <t t-esc="snln_line['lot_name']" />
@@ -205,7 +210,7 @@
                                                 <span>)</span>
                                             </t>
                                         </t>
-                                    </t>
+<!--                                    </t>-->
                                 </td>
                                 <td name="td_quantity" class="text-end">
                                     <span t-field="line.quantity" />
