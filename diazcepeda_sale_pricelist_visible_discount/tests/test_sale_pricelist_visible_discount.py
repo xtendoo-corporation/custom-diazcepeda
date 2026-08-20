@@ -516,6 +516,132 @@ class TestSalePricelistVisibleDiscount(TransactionCase):
             "price_unit debe ser mayor que el precio final de la tarifa"
         )
 
+    def test_08b_chained_pricelist_two_level_passthrough(self):
+        """Cadena con dos niveles de passthrough puro (bug ELISA → TARIFA3 →
+        AGUA SOLAN).
+
+        Estructura:
+          - Tarifa terminal: regla 'percentage' con 32% de descuento.
+          - Tarifa intermedia: 'formula' + 'pricelist' con 0% que delega en
+            la terminal (passthrough puro).
+          - Tarifa activa: 'formula' + 'pricelist' con 0% que delega en la
+            intermedia (passthrough puro).
+
+        Antes del fix, el descuento visible quedaba en 0 porque solo se
+        inspeccionaba un nivel de delegación. Ahora debe resolverse la regla
+        terminal recorriendo la cadena completa y mostrar discount = 32%.
+        """
+        pricelist_terminal = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Terminal 32%",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "percentage",
+                            "percent_price": 32.0,
+                        },
+                    )
+                ],
+            }
+        )
+        pricelist_intermediate = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Intermedia Passthrough",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "formula",
+                            "base": "pricelist",
+                            "base_pricelist_id": pricelist_terminal.id,
+                            "price_discount": 0.0,
+                        },
+                    )
+                ],
+            }
+        )
+        pricelist_active = self.env["product.pricelist"].create(
+            {
+                "name": "Tarifa Activa Passthrough",
+                "currency_id": self.currency_eur.id,
+                "item_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "applied_on": "3_global",
+                            "compute_price": "formula",
+                            "base": "pricelist",
+                            "base_pricelist_id": pricelist_intermediate.id,
+                            "price_discount": 0.0,
+                        },
+                    )
+                ],
+            }
+        )
+        _order, line = self._make_sale_order(pricelist_active)
+
+        self._assertAlmostEqual(
+            line.discount, 32.0,
+            msg="discount debe ser 32 recorriendo dos niveles de passthrough"
+        )
+        pricelist_price = float(
+            line.with_company(line.company_id)._get_pricelist_price()
+        )
+        self.assertGreater(line.price_unit, 0.0, "price_unit debe ser positivo")
+        self.assertGreater(
+            line.price_unit, pricelist_price,
+            "price_unit debe ser mayor que el precio final de la tarifa"
+        )
+
+    # ------------------------------------------------------------------
+    # Caso 10: feature de descuentos desactivada → sin inflar el precio
+    # ------------------------------------------------------------------
+
+    def test_10_discount_feature_disabled_no_price_inflation(self):
+        """Si 'sale.group_discount_per_so_line' está desactivado, el módulo
+        no debe sustituir price_unit por el precio base sin compensarlo
+        con el descuento, porque discount se queda a 0 y el subtotal
+        quedaría inflado (se cobraría de más al cliente).
+        """
+        self.env["res.config.settings"].create(
+            {"group_discount_per_so_line": False}
+        ).execute()
+        self.assertFalse(
+            self.env["product.pricelist.item"]._is_discount_feature_enabled(),
+            msg="Precondición: feature de descuentos debe estar desactivada",
+        )
+
+        pricelist = self._make_chained_pricelist(discount_percent=10.0)
+        _order, line = self._make_sale_order(pricelist)
+
+        self.assertEqual(
+            line.discount,
+            0.0,
+            msg="Sin la feature activa, Odoo no muestra descuento visible",
+        )
+        self._assertAlmostEqual(
+            line.price_unit,
+            90.0,
+            msg=(
+                "Sin la feature de descuentos, price_unit debe ser el precio "
+                "neto final (90), no el precio base sin descontar (100), "
+                "para no inflar el subtotal"
+            ),
+        )
+        self._assertAlmostEqual(
+            line.price_subtotal,
+            90.0,
+            msg="price_subtotal no debe quedar inflado por encima del precio neto",
+        )
+
     # ------------------------------------------------------------------
     # Test de integridad: flujo interno paso a paso
     # ------------------------------------------------------------------

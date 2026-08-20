@@ -50,6 +50,12 @@ class SaleOrderLine(models.Model):
         """
         result = super()._get_display_price_ignore_combo()
 
+        discount_enabled = (
+            self.env["product.pricelist.item"]._is_discount_feature_enabled()
+        )
+        if not discount_enabled:
+            return result
+
         rule = self.pricelist_item_id
         if not self._xtd_can_convert_rule_to_visible_discount(rule):
             return result
@@ -145,6 +151,66 @@ class SaleOrderLine(models.Model):
         )
 
     # ------------------------------------------------------------------
+    # Resolución de la regla terminal en cadenas de tarifas encadenadas
+    # ------------------------------------------------------------------
+
+    def _xtd_resolve_terminal_rule(self, pricelist, max_depth=10):
+        """Sigue la cadena de reglas 'formula + pricelist' puras (passthrough,
+        price_discount=0 y sin surcharge/round/margins) hasta encontrar la
+        regla real que fija el precio (percentage, fixed, o formula con
+        descuento/margen propio).
+
+        Soluciona el caso de tarifas con 2+ niveles de delegación (p.ej.
+        ELISA -> TARIFA3 -> AGUA SOLAN Y FORMULAS), donde el nivel intermedio
+        es también un passthrough puro y no debe confundirse con la regla
+        terminal.
+        """
+        self.ensure_one()
+        product = self.product_id
+        if not pricelist or not product:
+            return None, None
+        seen = set()
+        current_pricelist = pricelist
+        for _ in range(max_depth):
+            if current_pricelist.id in seen:
+                return None, None
+            seen.add(current_pricelist.id)
+            try:
+                qty = self.product_uom_qty or 1.0
+                uom = self.product_uom
+                date = self._get_order_date()
+                _price, rule_id = current_pricelist._get_product_price_rule(
+                    product.with_context(**self._get_product_price_context()),
+                    qty,
+                    uom=uom or False,
+                    date=date,
+                )
+            except Exception:
+                return None, None
+            if not rule_id:
+                return None, None
+            rule = (
+                self.env["product.pricelist.item"].browse(rule_id)
+                if isinstance(rule_id, int)
+                else rule_id
+            )
+            is_pure_passthrough = (
+                rule.compute_price == "formula"
+                and rule.base == "pricelist"
+                and rule.base_pricelist_id
+                and not rule.price_discount
+                and not rule.price_surcharge
+                and not rule.price_round
+                and not rule.price_min_margin
+                and not rule.price_max_margin
+            )
+            if is_pure_passthrough:
+                current_pricelist = rule.base_pricelist_id
+                continue
+            return current_pricelist, rule
+        return None, None
+
+    # ------------------------------------------------------------------
     # Validación de la regla aplicable en la tarifa base
     # ------------------------------------------------------------------
 
@@ -173,30 +239,14 @@ class SaleOrderLine(models.Model):
         if rule.price_discount:
             return True
 
-        # Caso 2: passthrough → comprobar qué tipo de regla tiene la tarifa base
+        # Caso 2: passthrough → recorrer la cadena hasta la regla terminal real
         base_pricelist = rule.base_pricelist_id
         product = self.product_id
         if not base_pricelist or not product:
             return False
-        try:
-            qty = self.product_uom_qty or 1.0
-            uom = self.product_uom
-            date = self._get_order_date()
-            _price, base_rule_id = base_pricelist._get_product_price_rule(
-                product.with_context(**self._get_product_price_context()),
-                qty,
-                uom=uom or False,
-                date=date,
-            )
-        except Exception:
+        _pl, base_rule = self._xtd_resolve_terminal_rule(base_pricelist)
+        if not base_rule:
             return False
-        if not base_rule_id:
-            return False
-        # _get_product_price_rule devuelve el ID (int), no el recordset
-        if isinstance(base_rule_id, int):
-            base_rule = self.env["product.pricelist.item"].browse(base_rule_id)
-        else:
-            base_rule = base_rule_id
         return base_rule.compute_price in ("percentage", "formula")
 
     # ------------------------------------------------------------------
@@ -287,25 +337,8 @@ class SaleOrderLine(models.Model):
         product = self.product_id
         if not base_pricelist or not product:
             return None
-        try:
-            qty = self.product_uom_qty or 1.0
-            uom = self.product_uom
-            date = self._get_order_date()
-            _price, base_rule_id = base_pricelist._get_product_price_rule(
-                product.with_context(**self._get_product_price_context()),
-                qty,
-                uom=uom or False,
-                date=date,
-            )
-        except Exception:
-            return None
-        if not base_rule_id:
-            return None
-        if isinstance(base_rule_id, int):
-            base_rule = self.env["product.pricelist.item"].browse(base_rule_id)
-        else:
-            base_rule = base_rule_id
-        if base_rule.compute_price != "percentage":
+        _pl, base_rule = self._xtd_resolve_terminal_rule(base_pricelist)
+        if not base_rule or base_rule.compute_price != "percentage":
             return None
         percent = base_rule.percent_price
         if percent <= 0 or percent >= 100:
