@@ -15,6 +15,7 @@
     "data": [
         "views/menu_views.xml",
         "views/partner_views.xml",
+        "views/product_template_views.xml",
         "views/show_discount_sale_report.xml",
     ],
     "installable": True,
