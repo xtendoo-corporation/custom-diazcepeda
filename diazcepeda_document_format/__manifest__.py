@@ -19,6 +19,7 @@
     "data": [
         "views/sale/report_saleorder_document.xml",
         "views/invoice/report_invoice_document.xml",
+        "data/report_paperformat_invoice.xml",
         "views/invoice/report_invoice_document_preprinted.xml",
         "views/stock_picking/report_delivery_document.xml",
         "views/layout/external_layout_striped.xml",
