@@ -8,7 +8,7 @@
         <field name="margin_bottom">12</field>
         <field name="margin_left">0</field>
         <field name="margin_right">0</field>
-        <field name="header_spacing">35</field>
+        <field name="header_spacing">48</field>
         <field name="dpi">90</field>
         <field name="css_margins" eval="True" />
         <field name="header_line" eval="False" />
