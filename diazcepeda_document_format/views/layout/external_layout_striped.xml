@@ -52,7 +52,7 @@
                  t-if="is_preprinted != 2" style="font-size: 12px; line-height: 16px;">
                 <div class="text-center">
                     <div t-field="company.report_footer">Company Report Footer</div>
-                    <div t-if="show_gastos_gestion" class="text-muted" style="margin-top:-23px;">
+                    <div t-if="show_gastos_gestion" class="text-muted">
                         <span>Este documento incluye 1 € de gastos de gestión.</span>
                     </div>
                     <div t-if="report_type == 'pdf'">
