@@ -49,7 +49,7 @@
              La clase 'o_boxed_footer' tampoco existe en Odoo 18. -->
         <xpath expr="//div[contains(@t-attf-class, 'footer')]" position="replace">
             <div t-attf-class="footer o_boxed_footer o_company_#{company.id}_layout"
-                 t-if="is_preprinted != 2" style="font-size: 10px; line-height: 12px;">
+                 t-if="is_preprinted != 2" style="font-size: 12px; line-height: 16px;">
                 <div class="text-center">
                     <div t-field="company.report_footer">Company Report Footer</div>
                     <div t-if="show_gastos_gestion" class="text-muted" style="margin-top:-23px;">
